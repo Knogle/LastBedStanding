@@ -69,7 +69,7 @@ enum
 };
 
 #define MAPTYPE CHILLIAD
-#pragma tabsize 0
+
 
 #define PATH "/Users/%s.ini"
 
@@ -809,23 +809,23 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 	new index;
 	switch(GetPickupType(pickupid,index))
 	{
-		case INVALID_PICKUP_TYPE:
-			{
-			}
-		case MONEY_TYPE:
-			{
-				maxmoney -= 1;
-				GivePlayerMoney(playerid, 1000);
-				printf("ID picked up: %d",maxmoney);
-				MoneyPickups[index]=-1;
-				HeapSort(MoneyPickups);
-				DestroyPickup(pickupid);
-			}
-		case ACTOR_TYPE:
-			{
-				ShowMenuForPlayer(shopmenu,playerid);
-				TogglePlayerControllable(playerid,false);
-			}
+	case INVALID_PICKUP_TYPE:
+		{
+		}
+	case MONEY_TYPE:
+		{
+			maxmoney -= 1;
+			GivePlayerMoney(playerid, 1000);
+			printf("ID picked up: %d",maxmoney);
+			MoneyPickups[index]=-1;
+			HeapSort(MoneyPickups);
+			DestroyPickup(pickupid);
+		}
+	case ACTOR_TYPE:
+		{
+			ShowMenuForPlayer(shopmenu,playerid);
+			TogglePlayerControllable(playerid,false);
+		}
 	}
 	return 1;
 }
@@ -847,17 +847,17 @@ stock GetPickupType(pickupid, &index)
 /*
 stock GetPickupType(pickupid, &index)
 {
-    for(new i; i<sizeof(MoneyPickups); i++)
-    {
-        if(MoneyPickups[i] == pickupid) return index=i,MONEY_TYPE;
-    }
-    for(new i; i<sizeof(ActorPickups); i++)
-    {
-        if(ActorPickups[i] == pickupid) return index=i,ACTOR_TYPE;
-    }
-    return INVALID_PICKUP_TYPE;
+	for(new i; i<sizeof(MoneyPickups); i++)
+	{
+		if(MoneyPickups[i] == pickupid) return index=i,MONEY_TYPE;
+	}
+	for(new i; i<sizeof(ActorPickups); i++)
+	{
+		if(ActorPickups[i] == pickupid) return index=i,ACTOR_TYPE;
+	}
+	return INVALID_PICKUP_TYPE;
 }
- */
+*/
 public UpdateTimeAndWeather()
 {
 	
