@@ -25,7 +25,7 @@
 */
 
 #include <a_samp>
-#include <crashdetect>
+
 #include <sscanf2>
 #include <YSI\y_ini>
 
@@ -49,7 +49,8 @@ enum
 	BONE_COUNTY,
 	MAD_DOGGS,
 	COUNTRYSIDE_1,
-	GREEN_PALMS
+	GREEN_PALMS,
+	COUNTRYSIDE_2
 };
 
 enum pInfo
@@ -69,7 +70,7 @@ enum
 };
 
 #define MAPTYPE COUNTRYSIDE_1
-
+#pragma tabsize 0
 
 #define PATH "/Users/%s.ini"
 
@@ -219,6 +220,8 @@ stock udb_hash(buf[]) {
 #include <green_palms.pwn>
 #elseif MAPTYPE==COUNTRYSIDE_1
 #include <countryside_1.pwn>
+#elseif MAPTYPE==COUNTRYSIDE_2
+#include <countryside_2.pwn>
 #endif
 #endif
 
@@ -371,6 +374,9 @@ public OnGameModeInit()
 	#elseif MAPTYPE==COUNTRYSIDE_1
 	#tryinclude <cs_vehicles.txt>
 	#tryinclude <cs_objects.txt>
+	#elseif MAPTYPE==COUNTRYSIDE_2
+	#tryinclude <cs2_vehicles.txt>
+	#tryinclude <cs2_objects.txt>
 	#endif
 	#endif
 	for(new t;t<sizeof(MoneyPickups);t++)
@@ -660,7 +666,7 @@ stock reveal(playerid)
 {
 	
 	SendClientMessage(playerid,COLOR_WHITE,"SERVER: You are visible again!");
-	if(PStealth[i] == =1 && (gPlayerTeamSelection == FIRST_TEAM))
+	if(PStealth[i] == -1 && (gPlayerTeamSelection == FIRST_TEAM))
 	{
 		PStealth[i]=0;
 		SetPlayerColor(playerid,COLOR_TEAM_ONE);
@@ -998,6 +1004,7 @@ static stock Swap (&a, &b)
 
 public OnPlayerConnect(playerid)
 {
+	ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, 1, 0, 0, 1, 1);
 	if(fexist(UserPath(playerid)))
 	{
 		
@@ -1884,11 +1891,11 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		{
 			switch(gPlayerTeamSelection[playerid])
 			{
-			case 1:
+			case 0:
 				{
 					SetPlayerColor(playerid,COLOR_TEAM_ONE_STEALTH);	
 				}
-			case 2:
+			case 1:
 				{
 					SetPlayerColor(playerid,COLOR_TEAM_TWO_STEALTH);	
 				}
@@ -1902,7 +1909,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		{
 			switch(gPlayerTeamSelection[playerid])
 			{
-			case 3:
+			case 2:
 				{
 					SetPlayerColor(playerid,COLOR_TEAM_THREE_STEALTH);	
 				}
@@ -1930,7 +1937,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		{
 			switch(gPlayerTeamSelection[playerid])
 			{
-			case 3:
+			case 4:
 				{
 					SetPlayerColor(playerid,COLOR_TEAM_FIVE_STEALTH);	
 				}
@@ -1944,7 +1951,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		{
 			switch(gPlayerTeamSelection[playerid])
 			{
-			case 3:
+			case 5:
 				{
 					SetPlayerColor(playerid,COLOR_TEAM_SIX_STEALTH);	
 				}
@@ -3023,7 +3030,7 @@ public OnPlayerSpawn(playerid)
 	#if TEAMSIZE >= 5
 	if(BED_STATE_TEAM_FIVE!=0 && FIFTH_TEAM == gPlayerTeamSelection[playerid])
 	{
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",FIVE_TEAM_COLOR_TAG);
+		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",FIFTH_TEAM_COLOR_TAG);
 		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
 		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
 		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
@@ -3106,7 +3113,7 @@ public OnPlayerSpawn(playerid)
 	#endif
 	#if defined TEAMSIZE
 	#if TEAMSIZE >= 5
-	else if(FIFTH_TEAM_TEAM == gPlayerTeamSelection[playerid]) {
+	else if(FIFTH_TEAM == gPlayerTeamSelection[playerid]) {
 		randSpawn = random(sizeof(gSpawnsTeam_TEAM_FIVE));
 		SetPlayerPos(playerid,
 		gSpawnsTeam_TEAM_FIVE[randSpawn][0],
