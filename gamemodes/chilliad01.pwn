@@ -70,8 +70,14 @@ enum
 	ACTOR_TYPE,
 	INFO_TYPE
 };
+enum weather_info
+{
+	wt_id,
+	wt_text[255]
+};
 
 #define MAPTYPE CHILLIAD
+
 
 #define PATH "/Users/%s.ini"
 
@@ -99,6 +105,9 @@ enum
 
 
 //----------------------------------------------------------
+forward WeatherTimer();
+forward RandomWeather();
+
 forward SaveUser_data(playerid);
 forward ResetPlayerData(playerid);
 forward warpcount(playerid);
@@ -148,10 +157,17 @@ new Shop_Counter;
 
 //--------------------------------------------------------------
 
-
-
 new totaltime;
-
+new gRandomWeatherIDs[][weather_info] =
+{
+	{1,"Sunny"},
+	{8,"Stormy"},
+	{9,"Foggy Sky"},
+	{11,"Extreme Sunny"},
+	{16,"Rainy"},
+	{19,"Thunderstorm"},
+	{20,"Foggy"}	
+};
 
 
 
@@ -270,6 +286,27 @@ stock binarysearch(a[],key,l,r)
 			l= k+1;
 		}        
 	}    
+	return -1;
+}
+stock binarysearch2(a[][],idx,key,l,r)
+{
+	new k;
+	while(r >=l)
+	{
+		k = (l+r)/2;
+		if(key == a[k][idx])
+		{
+			return k;
+		}
+		if(key < a[k][idx])
+		{
+			r = k-1;
+		}
+		else
+		{
+			l= k+1;
+		}
+	}
 	return -1;
 }
 stock SendClientMessageEx(playerid, color, fstring[], {Float, _}:...)
@@ -406,7 +443,7 @@ public OnGameModeInit()
 	
 	SendRconCommand("mapname "#MAPTYPE);
 
-	
+	SetTimer("RandomWeather", 300000, 1);
 	
 	#if defined TEAMSIZE
 	#if TEAMSIZE >=2
@@ -649,6 +686,15 @@ public SaveUser_data(playerid)
 	INI_WriteInt(File,"Admin",PlayerInfo[playerid][pAdmin]);
 	INI_Close(File);
 }
+public RandomWeather()
+{
+	new rand = random(sizeof(gRandomWeatherIDs));
+	new strout[256];
+	format(strout, sizeof(strout), "Weather changed to %s", gRandomWeatherIDs[rand][wt_text]);
+	SetWeather(gRandomWeatherIDs[rand][wt_id]);
+	SendClientMessageToAll(COLOR_WHITE,strout);
+	print(strout);
+}
 public LoadUser_data(playerid,name[],value[])
 {
 	//INI_Int("Password",PlayerInfo[playerid][pPass]);
@@ -665,8 +711,6 @@ stock TeleportPlayerToBase(playerid)
 	#if defined TEAMSIZE
 	#if TEAMSIZE >= 2	
 	new randSpawn=0;
-	if(IsValidObject(Beam[playerid]))
-	DestroyObject(Beam[playerid]);	
 	switch(gPlayerTeamSelection[playerid])
 	{
 	case 0:
@@ -768,7 +812,7 @@ stock TeleportPlayerToBase(playerid)
 		
 		#endif
 		#endif	
-	
+		
 	}
 	
 	
@@ -945,61 +989,71 @@ public warpcount(playerid)
 	WarpVar[playerid]--;
 	
 
-		
-		if(WarpVar[playerid] == 0)
+	
+	if(WarpVar[playerid] == 0)
+	{
+		if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
 		{
-			if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
-			{
-				KillTimer(WarpTimer);
-				WarpVar[playerid] = 4;
-				Warppowder[playerid]=1;
-				return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
-			}
-			TeleportPlayerToBase(playerid);
-			
-			WarpVar[playerid] = 4;	
 			KillTimer(WarpTimer);
-			PlayerPlaySound(playerid,1137,0,0,0);
-		
+			WarpVar[playerid] = 4;
+			Warppowder[playerid]=1;
+			if(IsValidObject(Beam[playerid]))
+			DestroyObject(Beam[playerid]);	
+			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
 		}
-		if(WarpVar[playerid] == 1)
+		if(IsValidObject(Beam[playerid]))
+		DestroyObject(Beam[playerid]);	
+		TeleportPlayerToBase(playerid);
+		
+		WarpVar[playerid] = 4;	
+		KillTimer(WarpTimer);
+		PlayerPlaySound(playerid,1137,0,0,0);
+		
+	}
+	if(WarpVar[playerid] == 1)
+	{
+		if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
 		{
-			if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
-			{
-				KillTimer(WarpTimer);
-				WarpVar[playerid] = 4;
-				Warppowder[playerid]=1;
-				return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
-				
-			}
-			PlayerPlaySound(playerid,1137,0,0,0);
+			KillTimer(WarpTimer);
+			WarpVar[playerid] = 4;
+			Warppowder[playerid]=1;
+			if(IsValidObject(Beam[playerid]))
+			DestroyObject(Beam[playerid]);	
+			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
 			
 		}
-		if(WarpVar[playerid] == 2)
+		PlayerPlaySound(playerid,1137,0,0,0);
+		
+	}
+	if(WarpVar[playerid] == 2)
+	{
+		if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
 		{
-			if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
-			{
-				KillTimer(WarpTimer);
-				WarpVar[playerid] = 4;
-				Warppowder[playerid]=1;
-				return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
-			}
-			PlayerPlaySound(playerid,1137,0,0,0);
-		
+			KillTimer(WarpTimer);
+			WarpVar[playerid] = 4;
+			Warppowder[playerid]=1;
+			if(IsValidObject(Beam[playerid]))
+			DestroyObject(Beam[playerid]);	
+			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
 		}
-		if(WarpVar[playerid] == 3)
+		PlayerPlaySound(playerid,1137,0,0,0);
+		
+	}
+	if(WarpVar[playerid] == 3)
+	{
+		if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
 		{
-			if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
-			{
-				KillTimer(WarpTimer);
-				WarpVar[playerid] = 4;
-				Warppowder[playerid]=1;
-				return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
-			}
-			PlayerPlaySound(playerid,1137,0,0,0);
-		
+			KillTimer(WarpTimer);
+			WarpVar[playerid] = 4;
+			Warppowder[playerid]=1;
+			if(IsValidObject(Beam[playerid]))
+			DestroyObject(Beam[playerid]);	
+			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
 		}
+		PlayerPlaySound(playerid,1137,0,0,0);
 		
+	}
+	
 	
 	return 1;
 }
@@ -2019,7 +2073,6 @@ stock GetTeamCount(teamid)
 	return playercount;
 }
 
-
 public OnPlayerTakeDamage(playerid, issuerid, Float: amount, weaponid, bodypart)
 {
 	if(issuerid != INVALID_PLAYER_ID && weaponid == 34 && bodypart == 9)
@@ -2034,7 +2087,7 @@ public OnPlayerTakeDamage(playerid, issuerid, Float: amount, weaponid, bodypart)
 
 public OnPlayerDisconnect(playerid, reason)
 {
-	SaveUser_data(playerid);	
+	//SaveUser_data(playerid);	
 	LastMoney[playerid]=0;
 	new pname[MAX_PLAYER_NAME], string[39 + MAX_PLAYER_NAME];
 	GetPlayerName(playerid, pname, sizeof(pname));
@@ -2069,15 +2122,21 @@ public OnPlayerCommandText(playerid, cmdtext[])
 {
 	new cmd[32], idx;
 	sscanf(cmdtext,"s[32]d",cmd,idx);
-	
-	printf("OnPlayerCommandText");
-	
 	if(strcmp(cmd, "/weather", true) == 0) 
 	{
+		if(!IsPlayerAdmin(playerid))
+		return 0;	
 		new targetweatherid;
 		if(sscanf(cmdtext[strlen("/weather")+1], "i", targetweatherid))
 		return SendClientMessage(playerid, COLOR_WHITE, "USAGE: /weather [weatherid]");
-		SetWeather(targetweatherid);
+		new wres = binarysearch2(gRandomWeatherIDs,0,targetweatherid,0,sizeof(gRandomWeatherIDs)-1);
+		if(wres == -1)
+		return SendClientMessage(playerid,COLOR_WHITE,"SERVER: Invalid weather ID, check weather array for valid IDs");
+		new strout[64];
+		format(strout, sizeof(strout), "Weather changed to %s", gRandomWeatherIDs[targetweatherid][wt_text]);
+		SetWeather(gRandomWeatherIDs[targetweatherid][wt_id]);
+		SendClientMessageToAll(COLOR_WHITE,strout);
+		print(strout);
 	}
 	if(strcmp(cmd, "/search", true) == 0) 
 	{
@@ -2313,14 +2372,14 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		new dropval;
 		if(sscanf(cmdtext[strlen("/dropmoney")+1], "i", dropval))
 		return SendClientMessage(playerid, COLOR_WHITE, "USAGE: /dropmoney [value]");
-		if(GetPlayerMoney(playerid) >= dropval && maxmoney <= 4000 && dropval > 0 && dropval <= 100000 && (maxmoney+(dropval/1000))<(4095-((dropval/1000)+maxmoney)) && dropval != 0 && !IsPlayerInAnyVehicle(playerid))
+		if(GetPlayerMoney(playerid) >= dropval && maxmoney <= 4000 && dropval > 0 && dropval <= 100000 && (maxmoney+(dropval/1000))<(MAX_PICKUPS-sizeof(ActorPickups)-sizeof(InfoPickups)-1-((dropval/1000)+maxmoney)) && dropval != 0 && !IsPlayerInAnyVehicle(playerid))
 		{
 			if(dropval%1000 == 0)
 			{
 				new moneydrop[32];
 				new dropstring[32];
 				format(dropstring,sizeof(dropstring),"SERVER: Dropped $%d",dropval);
-				format(moneydrop,sizeof(moneydrop), "~g~ %d~y~$",dropval);
+				format(moneydrop,sizeof(moneydrop), "~r~ -%d~y~$",dropval);
 				GameTextForPlayer(playerid,moneydrop,1000,1);
 				SendClientMessage(playerid, COLOR_WHITE, dropstring);
 				GivePlayerMoney(playerid,-dropval);
@@ -2336,7 +2395,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					new Float:ra2=((frandom(3)+y+0.5));
 					new Float:ra3=((frandom(1)+z-0.8));
 					
-					CreatePickup(1212,19,ra1,ra2,ra3, 0);
+					MoneyPickups[maxmoney]=CreatePickup(1212,19,ra1,ra2,ra3, 0);
 				}
 
 			}
@@ -2645,7 +2704,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		GetPlayerName(targetplayer, name, sizeof(name));
 		format(statsstring1,sizeof(statsstring1),"SERVER: Player stats of %s(%d) below.",name,targetplayer); 
 		SendClientMessage(playerid, COLOR_WHITE,statsstring1);
-		format(statsstring2,sizeof(statsstring2),"Kills:%d Deaths:%d Ratio:%f Blown beds:%d Bombs detonated:%d",kills,deaths,kd,PlayerInfo[targetplayer][pBeds],PlayerInfo[targetplayer][pBombs]); 
+		format(statsstring2,sizeof(statsstring2),"Kills:%d Deaths:%d Ratio:%0.2f Blown beds:%d Bombs detonated:%d",kills,deaths,kd,PlayerInfo[targetplayer][pBeds],PlayerInfo[targetplayer][pBombs]); 
 		SendClientMessage(playerid, COLOR_WHITE,statsstring2);
 	}
 	if(strcmp(cmd, "/pm", true) == 0)
