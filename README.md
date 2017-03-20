@@ -1,26 +1,27 @@
-# LastBedStanding
-Fork of Minecraft Bedwars in SA:MP
+# Change Log
+All notable changes to this project will be documented in this file.
 
-/*
-	Knogles Last Bed Standing Masterpiece for SA-MP
-	Fork of Minecrafts Bedwars 
-	Little TDM Gamemode
-	Published under GNU GPL Public License.
-	Copyright (C) 2017  Fabian Druschke
-	Contact: webmaster@knogleinsi.de
-	Mail: Postfach 32 22 50147 Kerpen Germany
+## [0.1a] - 2017-03-14
+### Added
+- Binarysearch instead of iterators for pickup system.
+- /stealth command to make yourself invisible for 60 seconds on minimap.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation, either version 3 of the License, or
-	(at your option) any later version.
+## [0.1b] - 2017-03-20
+### Added
+- Possibility to get a Warpkit to teleport yourself back to your base by using /warp command. Can be purchased for $100k in the shop.
+- New reference map files including new PlayerInfoPickups array. 
+- New pickup type InfoPickups, to show certain important server information like rules, FAQ and more..
+- SaveUser_data function to save userdata periodically into the user file.
+- ResetPlayerData function to reset player vars and arrays after death/disconnect.
+- TeleportPlayerToBase function to teleport the player back to his base using /warp command or /spawn command (Admin only).
+-
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+### Removed
+- The Seasparrow of team YELLOW on Chilliad map due to balancing.
+- Usless/Unused player vars and arrays.
 
-	You should have received a copy of the GNU General Public License
-	along with this program.  If not, see http://www.gnu.org/licenses/
 
-*/
+### Fix
+- /stealth kit which didnt work before. The player was invisible on the map all the time. No reset.
+- Map bugs on CHILLIAD and GREEN PALMS map.
+- String length of several strings due to display problems.
