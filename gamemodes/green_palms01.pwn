@@ -72,7 +72,6 @@ enum
 };
 
 #define MAPTYPE GREEN_PALMS
-#pragma tabsize 0
 
 #define PATH "/Users/%s.ini"
 

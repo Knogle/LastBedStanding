@@ -72,7 +72,6 @@ enum
 };
 
 #define MAPTYPE BONE_COUNTY
-#pragma tabsize 0
 
 #define PATH "/Users/%s.ini"
 

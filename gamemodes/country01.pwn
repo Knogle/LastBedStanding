@@ -72,7 +72,6 @@ enum
 };
 
 #define MAPTYPE COUNTRYSIDE_1
-#pragma tabsize 0
 
 #define PATH "/Users/%s.ini"
 
