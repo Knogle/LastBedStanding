@@ -666,23 +666,23 @@ stock reveal(playerid)
 {
 	
 	SendClientMessage(playerid,COLOR_WHITE,"SERVER: You are visible again!");
-	if(PStealth[i] == -1 && (gPlayerTeamSelection == FIRST_TEAM))
+	if(PStealth[playerid] == -1 && (gPlayerTeamSelection == FIRST_TEAM))
 	{
-		PStealth[i]=0;
+		PStealth[playerid]=0;
 		SetPlayerColor(playerid,COLOR_TEAM_ONE);
 		
 	}
-	if(PStealth[i] == -1 && (gPlayerTeamSelection == SECOND_TEAM))
+	if(PStealth[playerid] == -1 && (gPlayerTeamSelection == SECOND_TEAM))
 	{
-		PStealth[i]=0;
+		PStealth[playerid]=0;
 		SetPlayerColor(playerid,COLOR_TEAM_TWO);
 		
 	}
 	#if defined TEAMSIZE
 	#if TEAMSIZE >= 3
-	if(PStealth[i] == -1 && (gPlayerTeamSelection == THIRD_TEAM))
+	if(PStealth[playerid] == -1 && (gPlayerTeamSelection == THIRD_TEAM))
 	{
-		PStealth[i]=0;
+		PStealth[playerid]=0;
 		SetPlayerColor(playerid,COLOR_TEAM_THREE);
 		
 	}
@@ -690,9 +690,9 @@ stock reveal(playerid)
 	#endif
 	#if defined TEAMSIZE
 	#if TEAMSIZE >= 4
-	if(PStealth[i] == -1 && (gPlayerTeamSelection == FOURTH_TEAM))
+	if(PStealth[playerid] == -1 && (gPlayerTeamSelection == FOURTH_TEAM))
 	{
-		PStealth[i]=0;
+		PStealth[playerid]=0;
 		SetPlayerColor(playerid,COLOR_TEAM_FOUR);
 		
 	}
@@ -700,9 +700,9 @@ stock reveal(playerid)
 	#endif
 	#if defined TEAMSIZE
 	#if TEAMSIZE >= 5
-	if(PStealth[i] == -1 && (gPlayerTeamSelection == FIFTH_TEAM))
+	if(PStealth[playerid] == -1 && (gPlayerTeamSelection == FIFTH_TEAM))
 	{
-		PStealth[i]=0;
+		PStealth[playerid]=0;
 		SetPlayerColor(playerid,COLOR_TEAM_FIVE);
 		
 	}
@@ -710,9 +710,9 @@ stock reveal(playerid)
 	#endif
 	#if defined TEAMSIZE
 	#if TEAMSIZE == 6
-	if(PStealth[i] == -1 && (gPlayerTeamSelection == SIXTH_TEAM))
+	if(PStealth[playerid] == -1 && (gPlayerTeamSelection == SIXTH_TEAM))
 	{
-		PStealth[i]=0;
+		PStealth[playerid]=0;
 		SetPlayerColor(playerid,COLOR_TEAM_SIX);
 		
 	}	
