@@ -858,17 +858,17 @@ stock SpecPlayer(playerid,targetplayer)
 	spectatorid[playerid] = targetplayer;
 }
 
-stock reveal(playerid)
+public reveal(playerid)
 {
 	
 	SendClientMessage(playerid,COLOR_WHITE,"SERVER: You are visible again!");
-	if(PStealth[playerid] == -1 && (gPlayerTeamSelection == FIRST_TEAM))
+	if(PStealth[playerid] == -1 && (gPlayerTeamSelection[playerid] == FIRST_TEAM))
 	{
 		PStealth[playerid]=0;
 		SetPlayerColor(playerid,COLOR_TEAM_ONE);
 		
 	}
-	if(PStealth[playerid] == -1 && (gPlayerTeamSelection == SECOND_TEAM))
+	if(PStealth[playerid] == -1 && (gPlayerTeamSelection[playerid] == SECOND_TEAM))
 	{
 		PStealth[playerid]=0;
 		SetPlayerColor(playerid,COLOR_TEAM_TWO);
@@ -876,7 +876,7 @@ stock reveal(playerid)
 	}
 	#if defined TEAMSIZE
 	#if TEAMSIZE >= 3
-	if(PStealth[playerid] == -1 && (gPlayerTeamSelection == THIRD_TEAM))
+	if(PStealth[playerid] == -1 && (gPlayerTeamSelection[playerid] == THIRD_TEAM))
 	{
 		PStealth[playerid]=0;
 		SetPlayerColor(playerid,COLOR_TEAM_THREE);
@@ -886,7 +886,7 @@ stock reveal(playerid)
 	#endif
 	#if defined TEAMSIZE
 	#if TEAMSIZE >= 4
-	if(PStealth[playerid] == -1 && (gPlayerTeamSelection == FOURTH_TEAM))
+	if(PStealth[playerid] == -1 && (gPlayerTeamSelection[playerid] == FOURTH_TEAM))
 	{
 		PStealth[playerid]=0;
 		SetPlayerColor(playerid,COLOR_TEAM_FOUR);
@@ -896,7 +896,7 @@ stock reveal(playerid)
 	#endif
 	#if defined TEAMSIZE
 	#if TEAMSIZE >= 5
-	if(PStealth[playerid] == -1 && (gPlayerTeamSelection == FIFTH_TEAM))
+	if(PStealth[playerid] == -1 && (gPlayerTeamSelection[playerid] == FIFTH_TEAM))
 	{
 		PStealth[playerid]=0;
 		SetPlayerColor(playerid,COLOR_TEAM_FIVE);
@@ -906,7 +906,7 @@ stock reveal(playerid)
 	#endif
 	#if defined TEAMSIZE
 	#if TEAMSIZE == 6
-	if(PStealth[playerid] == -1 && (gPlayerTeamSelection == SIXTH_TEAM))
+	if(PStealth[playerid] == -1 && (gPlayerTeamSelection[playerid] == SIXTH_TEAM))
 	{
 		PStealth[playerid]=0;
 		SetPlayerColor(playerid,COLOR_TEAM_SIX);
