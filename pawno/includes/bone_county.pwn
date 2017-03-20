@@ -58,6 +58,11 @@ stock const Float:GlobalZones[][]={
 	{-58.38938, 2370.609, 455.4371, 2674.233}//Blue
 };
 
+stock const Float:PlayerInfoPickups[][]={
+	{0.0,0.0,0.0}
+
+};
+
 stock const Float:MoneySpawns[][]={	
 	{253.7534,239.1062,1805.2826,1797.3673,7.9141,7.4141},//Grey
 	{-949.3178,-958.2505,1914.4623,1907.0569,5.0000,4.7000},//Red

@@ -61,6 +61,12 @@ stock const Float:GlobalZones[][]={
 	{-420.4035, 1377.989, -175.1681, 1681.614}//Periwinkle
 };
 
+stock const Float:PlayerInfoPickups[][]={
+	{0.0,0.0,0.0}
+
+};
+
+
 stock const Float:MoneySpawns[][]={	
 	{231.0089,224.0765,1436.6581,1434.9581,46.2940,46.0940},//Desert
 	{338.4234,330.5255,839.4213,836.9364,20.0940,19.7940},//Orange

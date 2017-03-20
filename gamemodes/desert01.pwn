@@ -59,14 +59,16 @@ enum pInfo
 	pPass,
 	pBeds,
 	pKills,
-	pDeaths
+	pDeaths,
+	pAdmin
 };
 
 enum
 {
 	INVALID_PICKUP_TYPE,
 	MONEY_TYPE,
-	ACTOR_TYPE
+	ACTOR_TYPE,
+	INFO_TYPE
 };
 
 #define MAPTYPE BONE_COUNTY
@@ -98,7 +100,10 @@ enum
 
 
 //----------------------------------------------------------
-
+forward SaveUser_data(playerid);
+forward ResetPlayerData(playerid);
+forward warpcount(playerid);
+forward TeleportPlayerToBase(playerid);
 forward reveal(playerid);
 forward quickSort(array[], left, right);
 forward PrepareToBlowUp(playerid);
@@ -118,6 +123,7 @@ forward SpecPlayer(playerid,targetplayer);
 forward UpdateTimeAndWeather();
 forward CountDown();
 //----------------------------------------------------------
+new Warppowder[MAX_PLAYERS];
 new PBeds[MAX_PLAYERS];
 new PKills[MAX_PLAYERS];
 new PSkill[MAX_PLAYERS];
@@ -129,7 +135,11 @@ new IsSpecing[MAX_PLAYERS], Name[MAX_PLAYER_NAME], IsBeingSpeced[MAX_PLAYERS],sp
 new Float:pX[MAX_PLAYERS];
 new Float:pY[MAX_PLAYERS];
 new Float:pZ[MAX_PLAYERS];
+new Float:wX[MAX_PLAYERS];
+new Float:wY[MAX_PLAYERS];
+new Float:wZ[MAX_PLAYERS];
 new PBombID[MAX_PLAYERS];
+new Beam[MAX_PLAYERS];
 new gPlayerTeamSelection[MAX_PLAYERS];
 new gPlayerHasTeamSelected[MAX_PLAYERS];
 new gPlayerLastTeamSelectionTick[MAX_PLAYERS];
@@ -147,7 +157,7 @@ new totaltime;
 
 
 //--------------------------------------------------------------
-
+new Menu:infomenu;
 new Menu:shotungs;
 new Menu:items;
 new Menu:smg;
@@ -180,6 +190,8 @@ new maxmoney;
 new Float:x1, Float:y1, Float:z1;
 new running;
 new CountDownVar = 4;
+new WarpVar[MAX_PLAYERS];
+new WarpTimer;
 new CountDownTimer;
 
 
@@ -235,7 +247,8 @@ stock udb_hash(buf[]) {
 #endif
 
 new ActorPickups[sizeof(GlobalActors)];
-new MoneyPickups[MAX_PICKUPS-sizeof(GlobalActors)-1];
+new InfoPickups[sizeof(PlayerInfoPickups)];
+new MoneyPickups[MAX_PICKUPS-sizeof(ActorPickups)-sizeof(InfoPickups)-1];
 
 #define BYTECOUNT  (cellbits / 8)
 
@@ -387,6 +400,10 @@ public OnGameModeInit()
 	{
 		ActorPickups[d]=-1;
 	}
+	for(new f;f<sizeof(InfoPickups);f++)
+	{
+		InfoPickups[f]=-1;
+	}
 	
 	SendRconCommand("mapname "#MAPTYPE);
 
@@ -424,17 +441,27 @@ public OnGameModeInit()
 		CreateGlobalActor(g+1,274,GlobalActors[g][0],GlobalActors[g][1],GlobalActors[g][2],GlobalActors[g][3],3.0,g);		
 		SetActorInvulnerable(g+1, true);
 	}
+	for(new t=0;t<sizeof(InfoPickups);t++)
+	{
+		InfoPickups[t]=CreatePickup(1239,2,PlayerInfoPickups[t][0],PlayerInfoPickups[t][1],PlayerInfoPickups[t][2],0);
+	}
 
 
 	
 	
-	
+	infomenu = CreateMenu("Information", 1,20,200,200);
+	if(IsValidMenu(infomenu)){
+		AddMenuItem(infomenu, 0, "How to play");
+		AddMenuItem(infomenu, 0, "FAQ");
+		AddMenuItem(infomenu, 0, "Rules");
+	}
 	shopmenu = CreateMenu("Ammu-Nation", 1,20,200,200);
 	if(IsValidMenu(shopmenu)){
 		AddMenuItem(shopmenu, 0, "Weapons");
 		AddMenuItem(shopmenu, 0, "Improve Skill");
 		AddMenuItem(shopmenu, 0, "Stealth $85000");
 		AddMenuItem(shopmenu, 0, "Bomb $100000");
+		AddMenuItem(shopmenu, 0, "Warpkit $100000");
 		AddMenuItem(shopmenu, 0, "Suicide");
 	}
 	yesno=CreateMenu("~w~Confirmation",1,20,150,150);
@@ -611,6 +638,18 @@ stock UserPath(playerid)
 	format(string,sizeof(string),PATH,playername);
 	return string;
 }
+public SaveUser_data(playerid)
+{
+	
+	new INI:File = INI_Open(UserPath(playerid));
+	INI_SetTag(File,"data");
+	INI_WriteInt(File,"Bombs",PlayerInfo[playerid][pBombs]);
+	INI_WriteInt(File,"Beds",PlayerInfo[playerid][pBeds]);
+	INI_WriteInt(File,"Kills",PlayerInfo[playerid][pKills]);
+	INI_WriteInt(File,"Deaths",PlayerInfo[playerid][pDeaths]);
+	INI_WriteInt(File,"Admin",PlayerInfo[playerid][pAdmin]);
+	INI_Close(File);
+}
 public LoadUser_data(playerid,name[],value[])
 {
 	//INI_Int("Password",PlayerInfo[playerid][pPass]);
@@ -618,10 +657,124 @@ public LoadUser_data(playerid,name[],value[])
 	INI_Int("Beds",PlayerInfo[playerid][pBeds]);
 	INI_Int("Kills",PlayerInfo[playerid][pKills]);
 	INI_Int("Deaths",PlayerInfo[playerid][pDeaths]);
+	INI_Int("Admin",PlayerInfo[playerid][pAdmin]);
 	return 1;
 }
 
+stock TeleportPlayerToBase(playerid)
+{
+	#if defined TEAMSIZE
+	#if TEAMSIZE >= 2	
+	new randSpawn=0;
+	if(IsValidObject(Beam[playerid]))
+	DestroyObject(Beam[playerid]);	
+	switch(gPlayerTeamSelection[playerid])
+	{
+	case 0:
+		{
+			new str[80];
+			randSpawn = random(sizeof(gSpawnsTeam_TEAM_ONE));
+			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team "#FIRST_TEAM_COLOR_TAG);
+			SendClientMessage(playerid,COLOR_WHITE,str);
+			SetPlayerPos(playerid,
+			gSpawnsTeam_TEAM_ONE[randSpawn][0],
+			gSpawnsTeam_TEAM_ONE[randSpawn][1],
+			gSpawnsTeam_TEAM_ONE[randSpawn][2]);	
+		}
+	case 1:
+		{
+			new str[80];
+			randSpawn = random(sizeof(gSpawnsTeam_TEAM_TWO));
+			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team "#SECOND_TEAM_COLOR_TAG);
+			SendClientMessage(playerid,COLOR_WHITE,str);
+			SetPlayerPos(playerid,
+			gSpawnsTeam_TEAM_TWO[randSpawn][0],
+			gSpawnsTeam_TEAM_TWO[randSpawn][1],
+			gSpawnsTeam_TEAM_TWO[randSpawn][2]);	
+		}
+		
+		
+		#endif
+		#endif	
+		#if defined TEAMSIZE
+		#if TEAMSIZE >= 3
 
+		
+	case 2:
+		{
+			new str[80];
+			randSpawn = random(sizeof(gSpawnsTeam_TEAM_THREE));
+			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team "#THIRD_TEAM_COLOR_TAG);
+			SendClientMessage(playerid,COLOR_WHITE,str);
+			SetPlayerPos(playerid,
+			gSpawnsTeam_TEAM_THREE[randSpawn][0],
+			gSpawnsTeam_TEAM_THREE[randSpawn][1],
+			gSpawnsTeam_TEAM_THREE[randSpawn][2]);	
+		}
+		
+		
+		#endif
+		#endif	
+		#if defined TEAMSIZE
+		#if TEAMSIZE >= 4
+
+		
+	case 3:
+		{
+			new str[80];
+			randSpawn = random(sizeof(gSpawnsTeam_TEAM_FOUR));
+			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team "#FOURTH_TEAM_COLOR_TAG);
+			SendClientMessage(playerid,COLOR_WHITE,str);
+			SetPlayerPos(playerid,
+			gSpawnsTeam_TEAM_FOUR[randSpawn][0],
+			gSpawnsTeam_TEAM_FOUR[randSpawn][1],
+			gSpawnsTeam_TEAM_FOUR[randSpawn][2]);
+		}
+		
+		#endif
+		#endif	
+		#if defined TEAMSIZE
+		#if TEAMSIZE >= 5	
+
+		
+	case 4:
+		{
+			new str[80];
+			randSpawn = random(sizeof(gSpawnsTeam_TEAM_FIVE));
+			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team "#FIFTH_TEAM_COLOR_TAG);
+			SendClientMessage(playerid,COLOR_WHITE,str);
+			SetPlayerPos(playerid,
+			gSpawnsTeam_TEAM_FIVE[randSpawn][0],
+			gSpawnsTeam_TEAM_FIVE[randSpawn][1],
+			gSpawnsTeam_TEAM_FIVE[randSpawn][2]);
+		}
+		
+		#endif
+		#endif
+		#if defined TEAMSIZE
+		#if TEAMSIZE == 6	
+
+		
+	case 5:
+		{
+			new str[80];
+			randSpawn = random(sizeof(gSpawnsTeam_TEAM_SIX));
+			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team "#SIXTH_TEAM_COLOR_TAG);
+			SendClientMessage(playerid,COLOR_WHITE,str);
+			SetPlayerPos(playerid,
+			gSpawnsTeam_TEAM_SIX[randSpawn][0],
+			gSpawnsTeam_TEAM_SIX[randSpawn][1],
+			gSpawnsTeam_TEAM_SIX[randSpawn][2]);	
+		}
+		
+		#endif
+		#endif	
+	
+	}
+	
+	
+	
+}
 stock SpecPlayer(playerid,targetplayer)
 {
 
@@ -758,7 +911,7 @@ stock GenerateRandomPickup(modelid,type,Float:x_max,Float:x_min,Float:y_max,Floa
 		maxmoney = maxmoney +1;
 		MoneyPickups[maxmoney] = CreatePickup(modelid,type,rx1,ry2,rz3,virtualworld);
 		HeapSort(MoneyPickups);
-		printf("%d,%d,%f,%f,%f,%d",modelid,type,rx1,ry2,rz3,virtualworld);
+		//printf("%d,%d,%f,%f,%f,%d",modelid,type,rx1,ry2,rz3,virtualworld);
 		
 	}
 
@@ -788,6 +941,71 @@ public CountDown()
 	return 1;
 }
 
+public warpcount(playerid)
+{
+	WarpVar[playerid]--;
+	
+
+		
+		if(WarpVar[playerid] == 0)
+		{
+			if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
+			{
+				KillTimer(WarpTimer);
+				WarpVar[playerid] = 4;
+				Warppowder[playerid]=1;
+				return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
+			}
+			TeleportPlayerToBase(playerid);
+			
+			WarpVar[playerid] = 4;	
+			KillTimer(WarpTimer);
+			PlayerPlaySound(playerid,1137,0,0,0);
+		
+		}
+		if(WarpVar[playerid] == 1)
+		{
+			if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
+			{
+				KillTimer(WarpTimer);
+				WarpVar[playerid] = 4;
+				Warppowder[playerid]=1;
+				return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
+				
+			}
+			PlayerPlaySound(playerid,1137,0,0,0);
+			
+		}
+		if(WarpVar[playerid] == 2)
+		{
+			if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
+			{
+				KillTimer(WarpTimer);
+				WarpVar[playerid] = 4;
+				Warppowder[playerid]=1;
+				return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
+			}
+			PlayerPlaySound(playerid,1137,0,0,0);
+		
+		}
+		if(WarpVar[playerid] == 3)
+		{
+			if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
+			{
+				KillTimer(WarpTimer);
+				WarpVar[playerid] = 4;
+				Warppowder[playerid]=1;
+				return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
+			}
+			PlayerPlaySound(playerid,1137,0,0,0);
+		
+		}
+		
+	
+	return 1;
+}
+
+
 
 public SendTeamMessage(teamid, color, const message[])
 {
@@ -815,23 +1033,28 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 	new index;
 	switch(GetPickupType(pickupid,index))
 	{
-		case INVALID_PICKUP_TYPE:
-			{
-			}
-		case MONEY_TYPE:
-			{
-				maxmoney -= 1;
-				GivePlayerMoney(playerid, 1000);
-				printf("ID picked up: %d",maxmoney);
-				MoneyPickups[index]=-1;
-				HeapSort(MoneyPickups);
-				DestroyPickup(pickupid);
-			}
-		case ACTOR_TYPE:
-			{
-				ShowMenuForPlayer(shopmenu,playerid);
-				TogglePlayerControllable(playerid,false);
-			}
+	case INVALID_PICKUP_TYPE:
+		{
+		}
+	case MONEY_TYPE:
+		{
+			maxmoney -= 1;
+			GivePlayerMoney(playerid, 1000);
+			printf("ID picked up: %d",maxmoney);
+			MoneyPickups[index]=-1;
+			quickSort(MoneyPickups,0,sizeof(MoneyPickups)-1);
+			DestroyPickup(pickupid);
+		}
+	case ACTOR_TYPE:
+		{
+			ShowMenuForPlayer(shopmenu,playerid);
+			TogglePlayerControllable(playerid,false);
+		}
+	case INFO_TYPE:
+		{
+			ShowMenuForPlayer(infomenu,playerid);
+			TogglePlayerControllable(playerid,false);
+		}
 	}
 	return 1;
 }
@@ -845,25 +1068,14 @@ stock GetPickupType(pickupid, &index)
 	if(mres > -1 && MoneyPickups[mres] == pickupid) return index=mres,MONEY_TYPE;
 	new ares = binarysearch(ActorPickups,pickupid,0,sizeof(ActorPickups)-1);
 	if(ares > -1 && ActorPickups[ares] == pickupid) return index=ares,ACTOR_TYPE;
+	new ires = binarysearch(InfoPickups,pickupid,0,sizeof(InfoPickups)-1);
+	if(ires > -1 && InfoPickups[ires] == pickupid) return index=ires,INFO_TYPE;
 	
 	
 	
 	return INVALID_PICKUP_TYPE;
 }
-/*
-stock GetPickupType(pickupid, &index)
-{
-    for(new i; i<sizeof(MoneyPickups); i++)
-    {
-        if(MoneyPickups[i] == pickupid) return index=i,MONEY_TYPE;
-    }
-    for(new i; i<sizeof(ActorPickups); i++)
-    {
-        if(ActorPickups[i] == pickupid) return index=i,ACTOR_TYPE;
-    }
-    return INVALID_PICKUP_TYPE;
-}
- */
+
 public UpdateTimeAndWeather()
 {
 	
@@ -879,13 +1091,9 @@ public UpdateTimeAndWeather()
 	for(new i;i<MAX_PLAYERS;i++)
 	{
 		if(!IsPlayerConnected(i)) continue;
-		new INI:File = INI_Open(UserPath(i));
-		INI_SetTag(File,"data");
-		INI_WriteInt(File,"Bombs",PlayerInfo[i][pBombs]);
-		INI_WriteInt(File,"Beds",PlayerInfo[i][pBeds]);
-		INI_WriteInt(File,"Kills",PlayerInfo[i][pKills]);
-		INI_WriteInt(File,"Deaths",PlayerInfo[i][pDeaths]);
-		INI_Close(File);
+		SaveUser_data(i);
+		if(IsPlayerAdmin(i))
+		PlayerInfo[i][pAdmin]=1;	
 	}
 
 	printf("Executing UpdateTimeAndWeather");
@@ -1004,6 +1212,7 @@ static stock Swap (&a, &b)
 
 public OnPlayerConnect(playerid)
 {
+	WarpVar[playerid]=4;
 	ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, 1, 0, 0, 1, 1);
 	if(fexist(UserPath(playerid)))
 	{
@@ -1024,6 +1233,7 @@ public OnPlayerConnect(playerid)
 		INI_WriteInt(File,"Beds",0);
 		INI_WriteInt(File,"Kills",0);
 		INI_WriteInt(File,"Deaths",0);
+		INI_WriteInt(File,"Admin",0);
 		INI_Close(File);
 
 	}
@@ -1322,7 +1532,40 @@ public OnPlayerSelectedMenuRow(playerid, row)
 	new Menu:CurrentMenu = GetPlayerMenu(playerid);
 	new Menu:Current= GetPlayerMenu(playerid);
 	TogglePlayerControllable(playerid,false);
-	printf("Row %d",row);
+	if(Current==infomenu) 
+	{
+		TogglePlayerControllable(playerid,false);
+		switch(row) 
+		{
+		case 0:
+			{
+				TogglePlayerControllable(playerid,true);
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: How to play"); 
+				SendClientMessage(playerid,COLOR_WHITE,"The goal of this mode, is to destroy the enemie's bed and wipe out all the remaining players to determine the winner team."); 
+				SendClientMessage(playerid,COLOR_WHITE,"You can use the /blowup command to destroy and enemies bed!");
+			}
+		case 1:
+			{
+				TogglePlayerControllable(playerid,true);
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: How to destroy a bed?");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: Get close to the enemie's bed and use /blowup to destroy it!");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: What can i do if i am unable to respawn due to a destroyed bed?");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: You can use the command /spec [playerid] to spectate other players!");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: When does the game ends?");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: After a winning team is determined, means if only one team remains.");
+			}
+		case 2:
+			{
+				TogglePlayerControllable(playerid,true);
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: If you commit one of these things it will get you banned!");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: NO Cheating");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: NO Spamming");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: NO Quitting to avoid anything! Better die in honor for a honorable cause!");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: NEVER kill your own team mates, it will get you banned!");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: NEVER exploit bugs in any way! Report them instead!");
+			}
+		}
+	}
 	if(Current==ammunation) {
 		TogglePlayerControllable(playerid,false);
 		switch(row) {
@@ -1727,6 +1970,7 @@ public OnPlayerSelectedMenuRow(playerid, row)
 			else if(PBomb[playerid] != 0)
 			{
 				SendClientMessage(playerid,COLOR_WHITE,"SERVER: You already bought this item!");
+				TogglePlayerControllable(playerid,1);
 			}
 			else if(GetPlayerMoney(playerid) < 100000)
 			{
@@ -1734,7 +1978,27 @@ public OnPlayerSelectedMenuRow(playerid, row)
 				ShowMenuForPlayer(shopmenu,playerid);
 				TogglePlayerControllable(playerid,false);
 			}
-		case 4:
+		case 4: if(GetPlayerMoney(playerid) >= 100000 && Warppowder[playerid] == 0)
+			
+			{
+				Warppowder[playerid]=1;
+				SendClientMessage(playerid, 0xFFFFFFFF, "SERVER: You have bought a Warpkit! You can teleport yourself back to your base by using /warp");
+				ShowMenuForPlayer(shopmenu,playerid);
+				TogglePlayerControllable(playerid,false);
+				GivePlayerMoney(playerid,-100000);
+			}
+			else if(Warppowder[playerid] != 0)
+			{
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: You already bought this item!");
+				TogglePlayerControllable(playerid,1);
+			}
+			else if(GetPlayerMoney(playerid) < 100000)
+			{
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Insufficient balance! You can not afford this item!");
+				ShowMenuForPlayer(shopmenu,playerid);
+				TogglePlayerControllable(playerid,false);
+			}
+		case 5:
 			{
 				HideMenuForPlayer(shopmenu,playerid);
 				ShowMenuForPlayer(yesno,playerid);
@@ -1771,24 +2035,11 @@ public OnPlayerTakeDamage(playerid, issuerid, Float: amount, weaponid, bodypart)
 
 public OnPlayerDisconnect(playerid, reason)
 {
-	new INI:File = INI_Open(UserPath(playerid));
-	INI_SetTag(File,"data");
-	INI_WriteInt(File,"Bombs",PlayerInfo[playerid][pBombs]);
-	INI_WriteInt(File,"Beds",PlayerInfo[playerid][pBeds]);
-	INI_WriteInt(File,"Kills",PlayerInfo[playerid][pKills]);
-	INI_WriteInt(File,"Deaths",PlayerInfo[playerid][pDeaths]);
-	INI_Close(File);
-	
-	PStealth[playerid]=0;
+	SaveUser_data(playerid);	
 	LastMoney[playerid]=0;
 	new pname[MAX_PLAYER_NAME], string[39 + MAX_PLAYER_NAME];
 	GetPlayerName(playerid, pname, sizeof(pname));
-	PBombID[playerid]=0;
-	PBomb[playerid]=0;
-	pZ[playerid]=0;
-	pY[playerid]=0;
-	pZ[playerid]=0;
-
+	ResetPlayerData(playerid);
 	switch(reason)
 	{
 	case 0: format(string, sizeof(string), "%s (%d) has left the server. (Lost Connection)", pname,playerid);
@@ -1959,6 +2210,27 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		}
 		#endif
 		#endif	
+		
+		return 1;
+	}
+	if(strcmp(cmd, "/warp", true) == 0) //Warppowder
+	{
+		if(Warppowder[playerid] == 1)
+		{
+			Warppowder[playerid]=0;
+			SendClientMessage(playerid,COLOR_WHITE,"SERVER: Warning! Don't move until teleport!");
+			WarpTimer = SetTimerEx("warpcount", 1000, true,"i",playerid);
+			new Float:x,Float:y,Float:z;
+			GetPlayerPos(playerid,x,y,z);
+			wX[playerid]=x;
+			wY[playerid]=y;
+			wZ[playerid]=z;
+			Beam[playerid] = CreateObject(18671,x,y,z-1,0,0,0,300.0);
+		}
+		else
+		{
+			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You do not have Warppowder!");
+		}
 		
 		return 1;
 	}
@@ -2179,7 +2451,9 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			return SendClientMessage(playerid, COLOR_WHITE, "USAGE: /spawn [playerid]");
 			if(!IsPlayerConnected(targetplayer))
 			return SendClientMessage(playerid, COLOR_WHITE, "SERVER: Player not connected");
-			SpawnPlayer(targetplayer);
+			if(gPlayerHasTeamSelected[targetplayer] == -1)
+			return SendClientMessage(playerid, COLOR_WHITE, "SERVER: Player is still in team selection!");
+			TeleportPlayerToBase(targetplayer);
 		}	
 	}
 	if(strcmp(cmd, "/unfreeze", true) == 0)
@@ -2578,7 +2852,8 @@ public OnPlayerDeath(playerid, killerid, reason)
 {
 	PlayerInfo[playerid][pDeaths]++;
 	if(killerid != INVALID_PLAYER_ID) PlayerInfo[killerid][pKills]++;
-	PStealth[playerid]=0;
+	ResetPlayerData(playerid);
+	
 	new pname[MAX_PLAYER_NAME];
 	GetPlayerName(playerid, pname, sizeof(pname));
 	new moneyplayerid[145];
@@ -2586,8 +2861,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 	new matediedstringgrey[128];
 	new matediedstringred[128];
 	new matediedstringblue[128];
-	PBombID[playerid]=0;
-	PBomb[playerid]=0;
+	
 	HideMenuForPlayer(ammunation,playerid);
 	HideMenuForPlayer(pistols,playerid);
 	HideMenuForPlayer(microsmg,playerid);
@@ -2602,8 +2876,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 	HideMenuForPlayer(shopmenu,playerid);
 	HideMenuForPlayer(yesno,playerid);
 	
-	if(IsValidObject(BombObject[playerid]))
-	DestroyObject(BombObject[playerid]);
+
 	if(GetPlayerWeapon(playerid) == 16)
 	{
 		new Float:x, Float:y, Float:z;
@@ -2611,8 +2884,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 		CreateExplosion(x,y,z,7,10);
 		CreateExplosion(x,y,z,9,10);
 	}
-	PSkill[playerid]=0;
-	PBomb[playerid]=0;
+
 	if(BED_STATE_TEAM_ONE != 0 && gPlayerTeamSelection[playerid] == FIRST_TEAM)
 	{
 		format(matediedstringgrey,sizeof(matediedstringgrey),"SERVER: %s (%d) has been killed, watch out! %d players left in Team "#FIRST_TEAM_COLOR_TAG,pname,playerid,GetTeamCount(FIRST_TEAM)-1);
@@ -3135,7 +3407,6 @@ public OnPlayerSpawn(playerid)
 	}
 	#endif
 	#endif
-	printf("SPAWN: Case ELSE: %d",playerid);
 	GangZoneShowForPlayer(playerid, TEAM_ZONE_ONE, COLOR_TEAM_ONE);
 	GangZoneShowForPlayer(playerid, TEAM_ZONE_TWO, COLOR_TEAM_TWO);
 	#if defined TEAMSIZE
@@ -3244,6 +3515,26 @@ public MONEY_MAIN()//MAIN
 	
 	GenerateRandomPickup(1212,19,MoneySpawns[sizeof(MoneySpawns)-1][0],MoneySpawns[sizeof(MoneySpawns)-1][1],MoneySpawns[sizeof(MoneySpawns)-1][2],MoneySpawns[sizeof(MoneySpawns)-1][3],MoneySpawns[sizeof(MoneySpawns)-1][4],MoneySpawns[sizeof(MoneySpawns)-1][5],0);
 }	
+
+
+stock ResetPlayerData(playerid)
+{
+	
+	PStealth[playerid]=0;
+	Warppowder[playerid]=0;
+	PBombID[playerid]=0;
+	PBomb[playerid]=0;
+	PSkill[playerid]=0;
+	WarpVar[playerid]=4;
+	if(IsValidObject(BombObject[playerid]))
+	DestroyObject(BombObject[playerid]);	
+	pZ[playerid]=0;
+	pY[playerid]=0;
+	pZ[playerid]=0;
+	if(IsValidObject(Beam[playerid]))
+	DestroyObject(Beam[playerid]);	
+}
+
 stock CreateGlobalActor(actorid,modelid,Float:ax,Float:ay,Float:az,Float:angle,Float:distance,pickupid)
 {
 	actorid = CreateActor(modelid,ax,ay,az,angle);

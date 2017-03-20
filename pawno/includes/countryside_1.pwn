@@ -69,6 +69,11 @@ stock const Float:GlobalZones[][]={
 	{2066.984, -198.5239, 2300.542, -11.67788}//Aqua
 };
 
+stock const Float:PlayerInfoPickups[][]={
+	{0.0,0.0,0.0}
+
+};
+
 stock const Float:MoneySpawns[][]={	
 	{2353.2810,2349.7834,-646.6490,-658.7381,128.0547,127.8547},//Brown
 	{2052.2373,2043.2620,-483.5109,-498.2212,73.3781,73.0781},//Jade
