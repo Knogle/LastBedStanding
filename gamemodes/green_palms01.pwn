@@ -106,8 +106,8 @@ enum weather_info
 
 //----------------------------------------------------------
 forward WeatherTimer();
+forward GMX();
 forward RandomWeather();
-
 forward SaveUser_data(playerid);
 forward ResetPlayerData(playerid);
 forward warpcount(playerid);
@@ -126,6 +126,7 @@ forward MONEY_MAIN();
 forward TEAM_MONEY();
 forward BlowUpThisBed();
 forward SendTeamMessage(teamid, color, const message[]);
+forward SellPlayerFightingStyle(playerid,cost,style);
 forward SellPlayerWeapon(playerid,cost,weaponid,ammo);
 forward SpecPlayer(playerid,targetplayer);
 forward UpdateTimeAndWeather();
@@ -173,7 +174,8 @@ new gRandomWeatherIDs[][weather_info] =
 
 //--------------------------------------------------------------
 new Menu:infomenu;
-new Menu:shotungs;
+new Menu:fightstyles;
+new Menu:shotguns;
 new Menu:items;
 new Menu:smg;
 new Menu:rifles;
@@ -403,7 +405,7 @@ new BED_STATE_TEAM_SIX;
 
 public OnGameModeInit()
 {
-	CreateObject(1829,413.6000100,2537.6001000,18.6000000,0.0000000,0.0000000,0.0000000); //object(man_safenew) (1)
+	CreateObject(1829,243.1000100,1804.9000000,6.9000000,0.0000000,0.0000000,0.0000000); //object(man_safenew) (1) //Skin selection
 	#if defined MAPTYPE
 	#if MAPTYPE==CHILLIAD
 	#tryinclude <chilliad_vehicles.txt>
@@ -497,7 +499,7 @@ public OnGameModeInit()
 		AddMenuItem(shopmenu, 0, "Improve Skill");
 		AddMenuItem(shopmenu, 0, "Stealth $85000");
 		AddMenuItem(shopmenu, 0, "Bomb $100000");
-		AddMenuItem(shopmenu, 0, "Warpkit $100000");
+		AddMenuItem(shopmenu, 0, "Warpkit $50000");
 		AddMenuItem(shopmenu, 0, "Suicide");
 	}
 	yesno=CreateMenu("~w~Confirmation",1,20,150,150);
@@ -513,7 +515,7 @@ public OnGameModeInit()
 		AddMenuItem(ammunation,0,"  Pistols");
 		AddMenuItem(ammunation,0,"  Micro SMG");
 		AddMenuItem(ammunation,0,"  Shotguns");
-		AddMenuItem(ammunation,0,"  Items");
+		AddMenuItem(ammunation,0,"  Misc");
 		AddMenuItem(ammunation,0,"  SMG");
 		AddMenuItem(ammunation,0,"  Rifles");
 		AddMenuItem(ammunation,0,"  Assault rifle");
@@ -537,13 +539,13 @@ public OnGameModeInit()
 		AddMenuItem(microsmg,0,"  Micro SMG $5000");
 		AddMenuItem(microsmg, 0, "Back");
 	}
-	shotungs=CreateMenu("~w~Ammu-Nation",1,20,150,150);
-	if(IsValidMenu(shotungs)){
-		SetMenuColumnHeader(shotungs, 0, "Shotguns");
-		AddMenuItem(shotungs,0,"  Shotgun $12500");
-		AddMenuItem(shotungs,0,"  Sawn Off $15500");
-		AddMenuItem(shotungs,0,"  Combat Shotgun $15500");
-		AddMenuItem(shotungs, 0, "Back");
+	shotguns=CreateMenu("~w~Ammu-Nation",1,20,150,150);
+	if(IsValidMenu(shotguns)){
+		SetMenuColumnHeader(shotguns, 0, "Shotguns");
+		AddMenuItem(shotguns,0,"  Shotgun $12500");
+		AddMenuItem(shotguns,0,"  Sawn Off $15500");
+		AddMenuItem(shotguns,0,"  Combat Shotgun $55500");
+		AddMenuItem(shotguns, 0, "Back");
 	}
 	items=CreateMenu("~w~Ammu-Nation",1,20,150,150);
 	if(IsValidMenu(items)){
@@ -552,9 +554,20 @@ public OnGameModeInit()
 		AddMenuItem(items,0,"  Parachute $2500");
 		AddMenuItem(items,0,"  Spraycan $2500");
 		AddMenuItem(items,0,"  Camera $2500");
-		AddMenuItem(items,0,"  Armour $2500");
+		AddMenuItem(items,0,"  Fightstyles");
 		AddMenuItem(items,0,"  Health $2500");
 		AddMenuItem(items,0,"Back");
+	}
+	fightstyles=CreateMenu("~w~Ammu-Nation",1,20,150,150);
+	if(IsValidMenu(fightstyles)){
+		SetMenuColumnHeader(fightstyles, 0, "Fightstyles");
+		AddMenuItem(fightstyles,0,"  Kung Fu $2500");
+		AddMenuItem(fightstyles,0,"  Kneehead $2500");
+		AddMenuItem(fightstyles,0,"  Boxing $2500");
+		AddMenuItem(fightstyles,0,"  Grabkick $2500");
+		AddMenuItem(fightstyles,0,"  Elbow $2500");
+		AddMenuItem(fightstyles,0,"  Normal");
+		AddMenuItem(fightstyles,0,"Back");
 	}
 	smg=CreateMenu("~w~Ammu-Nation",1,30,150,150);
 	if(IsValidMenu(smg)){
@@ -566,20 +579,20 @@ public OnGameModeInit()
 	if(IsValidMenu(rifles)){
 		SetMenuColumnHeader(rifles, 0, "Rifle");
 		AddMenuItem(rifles,0," Cunt Gun $12500");
-		AddMenuItem(rifles,0," Sniper Rifle $25000");
+		AddMenuItem(rifles,0," Sniper Rifle $40000");
 		AddMenuItem(rifles, 0, "Back");
 	}
 	assaultrifle=CreateMenu("~w~Ammu-Nation",1,20,150,150);
 	if(IsValidMenu(assaultrifle)){
 		SetMenuColumnHeader(assaultrifle, 0, "Assault Rifle");
-		AddMenuItem(assaultrifle,0," AK-47 $20000");
-		AddMenuItem(assaultrifle,0," M4 $25000");
+		AddMenuItem(assaultrifle,0," AK-47 $40000");
+		AddMenuItem(assaultrifle,0," M4 $45000");
 		AddMenuItem(assaultrifle, 0, "Back");
 	}
 	special=CreateMenu("~w~Ammu-Nation",1,20,150,150);
 	if(IsValidMenu(special)){
 		SetMenuColumnHeader(special, 0, "special");
-		AddMenuItem(special,0," Minigun $1000000");
+		AddMenuItem(special,0," Minigun $2000000");
 		AddMenuItem(special,0," Bazooka $250000");
 		AddMenuItem(special,0," Flame Thrower $250000");
 		AddMenuItem(special, 0, "Back");
@@ -942,6 +955,28 @@ stock SellPlayerWeapon(playerid,cost,weaponid,ammo)
 	}
 }
 
+stock SellPlayerFightingStyle(playerid,cost,style)
+{
+	if(GetPlayerMoney(playerid) >= cost)
+	{
+
+		new spentstring[128];
+		format(spentstring,sizeof(spentstring),"SERVER: You spent $%d to purchase this style!",cost);
+		SendClientMessage(playerid,COLOR_WHITE,spentstring);
+		SetPlayerFightingStyle(playerid,style);
+		GivePlayerMoney(playerid,-cost);
+		TogglePlayerControllable(playerid,true);
+	}
+	else
+	{
+		new leftmoney = (GetPlayerMoney(playerid)-cost);
+		new insufstring[128];
+		format(insufstring,sizeof(insufstring),"SERVER: You still need $%d to purchase this fightstyle!",-leftmoney);
+		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Insufficient balance! You can not afford this fightstyle!");
+		SendClientMessage(playerid,COLOR_WHITE,insufstring);
+		TogglePlayerControllable(playerid,true);
+	}
+}
 stock GenerateRandomPickup(modelid,type,Float:x_max,Float:x_min,Float:y_max,Float:y_min,Float:z_max,Float:z_min,virtualworld)
 {
 	if(maxmoney <= sizeof(MoneyPickups))
@@ -954,7 +989,6 @@ stock GenerateRandomPickup(modelid,type,Float:x_max,Float:x_min,Float:y_max,Floa
 		maxmoney = maxmoney +1;
 		MoneyPickups[maxmoney] = CreatePickup(modelid,type,rx1,ry2,rz3,virtualworld);
 		HeapSort(MoneyPickups);
-		//printf("%d,%d,%f,%f,%f,%d",modelid,type,rx1,ry2,rz3,virtualworld);
 		
 	}
 
@@ -987,8 +1021,8 @@ public CountDown()
 public warpcount(playerid)
 {
 	WarpVar[playerid]--;
-	
-
+	new Float:x,Float:y,Float:z;
+	GetPlayerPos(playerid,x,y,z);
 	
 	if(WarpVar[playerid] == 0)
 	{
@@ -1007,8 +1041,7 @@ public warpcount(playerid)
 		
 		WarpVar[playerid] = 4;	
 		KillTimer(WarpTimer);
-		PlayerPlaySound(playerid,1137,0,0,0);
-		
+		PlayerPlaySound(playerid,1137,x,y,z);
 	}
 	if(WarpVar[playerid] == 1)
 	{
@@ -1022,7 +1055,7 @@ public warpcount(playerid)
 			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
 			
 		}
-		PlayerPlaySound(playerid,1137,0,0,0);
+		PlayerPlaySound(playerid,1137,x,y,z);
 		
 	}
 	if(WarpVar[playerid] == 2)
@@ -1036,7 +1069,7 @@ public warpcount(playerid)
 			DestroyObject(Beam[playerid]);	
 			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
 		}
-		PlayerPlaySound(playerid,1137,0,0,0);
+		PlayerPlaySound(playerid,1137,x,y,z);
 		
 	}
 	if(WarpVar[playerid] == 3)
@@ -1050,7 +1083,7 @@ public warpcount(playerid)
 			DestroyObject(Beam[playerid]);	
 			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
 		}
-		PlayerPlaySound(playerid,1137,0,0,0);
+		PlayerPlaySound(playerid,1137,x,y,z);
 		
 	}
 	
@@ -1629,7 +1662,7 @@ public OnPlayerSelectedMenuRow(playerid, row)
 				ShowMenuForPlayer(microsmg,playerid);
 			}
 		case 2: {
-				ShowMenuForPlayer(shotungs,playerid);
+				ShowMenuForPlayer(shotguns,playerid);
 			}
 		case 3: {
 				ShowMenuForPlayer(items,playerid);
@@ -1716,8 +1749,8 @@ public OnPlayerSelectedMenuRow(playerid, row)
 			}
 		}
 	}
-	else if(Current==shotungs) {
-		ShowMenuForPlayer(shotungs,playerid);
+	else if(Current==shotguns) {
+		ShowMenuForPlayer(shotguns,playerid);
 		switch(row) {
 		case 0:	{
 				SellPlayerWeapon(playerid,12500,25,50);
@@ -1728,10 +1761,10 @@ public OnPlayerSelectedMenuRow(playerid, row)
 
 			}
 		case 2: {
-				SellPlayerWeapon(playerid,15500,27,50);
+				SellPlayerWeapon(playerid,55500,27,50);
 			}
 		case 3: {
-				HideMenuForPlayer(shotungs,playerid);
+				HideMenuForPlayer(shotguns,playerid);
 				ShowMenuForPlayer(ammunation,playerid);
 			}
 		default: {
@@ -1763,7 +1796,7 @@ public OnPlayerSelectedMenuRow(playerid, row)
 
 			}
 
-		case 4:		if(GetPlayerMoney(playerid) > 2500)
+		case 4:	if(GetPlayerMoney(playerid) >= 2500)
 			{
 				GivePlayerMoney(playerid,-2500);
 				SetPlayerArmour(playerid,100.0);
@@ -1772,18 +1805,53 @@ public OnPlayerSelectedMenuRow(playerid, row)
 			{
 				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Insufficient balance! You can not afford this item!");
 			}
-		case 5:		if(GetPlayerMoney(playerid) >= 2500)
+		case 5:		
 			{
-				GivePlayerMoney(playerid,-2500);
-				SetPlayerHealth(playerid,100);
-			}
-			else
-			{
-				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Insufficient balance! You can not afford this item!");
+				HideMenuForPlayer(items,playerid);
+				ShowMenuForPlayer(fightstyles,playerid);
 			}
 		case 6: {
 				HideMenuForPlayer(items,playerid);
 				ShowMenuForPlayer(ammunation,playerid);
+			}
+		default: {
+				print("Fail");
+			}
+		}
+	}
+	
+	else if(Current==fightstyles) {
+		ShowMenuForPlayer(fightstyles,playerid);
+		switch(row) {
+		case 0:
+
+			{
+				SellPlayerFightingStyle (playerid,2500, FIGHT_STYLE_KUNGFU);
+			}
+		case 1: {
+				SellPlayerFightingStyle (playerid,2500, FIGHT_STYLE_KNEEHEAD);
+
+			}
+		case 2:
+			{
+				SellPlayerFightingStyle (playerid,2500, FIGHT_STYLE_BOXING);
+			}
+		case 3:
+			{
+				SellPlayerFightingStyle (playerid,2500, FIGHT_STYLE_GRABKICK);
+			}
+		case 4:
+			{
+				SellPlayerFightingStyle (playerid,2500, FIGHT_STYLE_ELBOW);
+			}
+		case 5:
+			{
+				SetPlayerFightingStyle (playerid, FIGHT_STYLE_NORMAL);
+			}
+		case 6:
+			{
+				HideMenuForPlayer(fightstyles,playerid);
+				ShowMenuForPlayer(items,playerid);
 			}
 		default: {
 				print("Fail");
@@ -1811,16 +1879,17 @@ public OnPlayerSelectedMenuRow(playerid, row)
 			}
 		}
 	}
+	
 	else if(Current==assaultrifle) {
 		ShowMenuForPlayer(assaultrifle,playerid);
 		switch(row) {
 		case 0:
 			{
-				SellPlayerWeapon(playerid,20000,30,500);
+				SellPlayerWeapon(playerid,40000,30,500);
 			}
 
 		case 1:	{
-				SellPlayerWeapon(playerid,25000,31,500);
+				SellPlayerWeapon(playerid,45000,31,500);
 
 			}
 		case 2: {
@@ -1841,7 +1910,7 @@ public OnPlayerSelectedMenuRow(playerid, row)
 
 			}
 		case 1:	{
-				SellPlayerWeapon(playerid,25000,34,50);
+				SellPlayerWeapon(playerid,40000,34,50);
 			}
 		case 2: {
 				HideMenuForPlayer(rifles,playerid);
@@ -1934,13 +2003,13 @@ public OnPlayerSelectedMenuRow(playerid, row)
 		ShowMenuForPlayer(special,playerid);
 		switch(row) {
 		case 0:	{
-				SellPlayerWeapon(playerid,1000000,38,1000);
+				SellPlayerWeapon(playerid,2000000,38,1000);
 			}
 		case 1:	{
-				SellPlayerWeapon(playerid,250000,35,50);
+				SellPlayerWeapon(playerid,250000,35,5);
 			}
 		case 2:	{
-				SellPlayerWeapon(playerid,250000,37,150);
+				SellPlayerWeapon(playerid,250000,37,300);
 
 			}
 		case 3: {
@@ -2003,6 +2072,7 @@ public OnPlayerSelectedMenuRow(playerid, row)
 				{
 					PStealth[playerid]=1;
 					SendClientMessage(playerid,COLOR_WHITE,"SERVER: You are equipped with a stealth kit. You can use /stealth to hide yourself");
+					GivePlayerMoney(playerid,-85000);
 					TogglePlayerControllable(playerid,1);
 				}
 				else
@@ -2031,14 +2101,14 @@ public OnPlayerSelectedMenuRow(playerid, row)
 				ShowMenuForPlayer(shopmenu,playerid);
 				TogglePlayerControllable(playerid,false);
 			}
-		case 4: if(GetPlayerMoney(playerid) >= 100000 && Warppowder[playerid] == 0)
+		case 4: if(GetPlayerMoney(playerid) >= 50000 && Warppowder[playerid] == 0)
 			
 			{
 				Warppowder[playerid]=1;
 				SendClientMessage(playerid, 0xFFFFFFFF, "SERVER: You have bought a Warpkit! You can teleport yourself back to your base by using /warp");
 				ShowMenuForPlayer(shopmenu,playerid);
 				TogglePlayerControllable(playerid,false);
-				GivePlayerMoney(playerid,-100000);
+				GivePlayerMoney(playerid,-50000);
 			}
 			else if(Warppowder[playerid] != 0)
 			{
@@ -2073,6 +2143,7 @@ stock GetTeamCount(teamid)
 	return playercount;
 }
 
+
 public OnPlayerTakeDamage(playerid, issuerid, Float: amount, weaponid, bodypart)
 {
 	if(issuerid != INVALID_PLAYER_ID && weaponid == 34 && bodypart == 9)
@@ -2084,7 +2155,99 @@ public OnPlayerTakeDamage(playerid, issuerid, Float: amount, weaponid, bodypart)
 }
 
 
-
+stock TeamsAlive(bool:value)
+{
+	new i=0,count=0;
+	while(i<TEAMSIZE)
+	{
+		if(GetTeamCount(i) > 0)
+		{
+			count++;
+		}
+		i++;	
+	}
+	if(bool:value == false)
+	switch(count)
+	{
+		case 1:
+		{
+			switch(TeamsAlive(true))
+			{
+				case FIRST_TEAM:
+				{
+					for(new d;d<MAX_PLAYERS;d++)
+					{
+						SendClientMessageEx(d,COLOR_WHITE,"SERVER: All remaining teams have been wiped. Team %s {FFFFFF}has won the game!",FIRST_TEAM_COLOR_TAG);
+					}	
+				}
+				case SECOND_TEAM:
+				{
+					for(new d;d<MAX_PLAYERS;d++)
+					{
+						SendClientMessageEx(d,COLOR_WHITE,"SERVER: All remaining teams have been wiped. Team %s {FFFFFF}has won the game!",SECOND_TEAM_COLOR_TAG);
+					}	
+				}
+				#if defined TEAMSIZE
+				#if TEAMSIZE >= 3
+				case THIRD_TEAM:
+				{
+					for(new d;d<MAX_PLAYERS;d++)
+					{
+						SendClientMessageEx(d,COLOR_WHITE,"SERVER: All remaining teams have been wiped. Team %s {FFFFFF}has won the game!",THIRD_TEAM_COLOR_TAG);
+					}	
+				}
+				#endif
+				#endif
+				#if defined TEAMSIZE
+				#if TEAMSIZE >= 4
+				case FOURTH_TEAM:
+				{
+					for(new d;d<MAX_PLAYERS;d++)
+					{
+						SendClientMessageEx(d,COLOR_WHITE,"SERVER: All remaining teams have been wiped. Team %s {FFFFFF}has won the game!",FOURTH_TEAM_COLOR_TAG);
+					}	
+				}
+				#endif
+				#endif
+				#if defined TEAMSIZE
+				#if TEAMSIZE >= 5
+				case FIFTH_TEAM:
+				{
+					for(new d;d<MAX_PLAYERS;d++)
+					{
+						SendClientMessageEx(d,COLOR_WHITE,"SERVER: All remaining teams have been wiped. Team %s {FFFFFF}has won the game!",FIFTH_TEAM_COLOR_TAG);
+					}	
+				}
+				#endif
+				#endif
+				#if defined TEAMSIZE
+				#if TEAMSIZE == 6
+				case SIXTH_TEAM:
+				{
+					for(new d;d<MAX_PLAYERS;d++)
+					{
+						SendClientMessageEx(d,COLOR_WHITE,"SERVER: All remaining teams have been wiped. Team %s {FFFFFF}has won the game!",SIXTH_TEAM_COLOR_TAG);
+					}	
+				}
+				#endif
+				#endif
+				
+			
+			}
+			SetTimer("GMX",500,false);
+		}
+	}
+	if(bool:value == true && count == 1)//Returns the ID of the remaining team
+	return i;
+	return 1;
+	
+}
+public GMX()
+{
+	SendClientMessageToAll(COLOR_WHITE,"SERVER: Game over! Map is changing. Please standby..");
+	printf("Total game time: %d",totaltime);
+	SendRconCommand("gmx");	
+}
 public OnPlayerDisconnect(playerid, reason)
 {
 	//SaveUser_data(playerid);	
@@ -2273,7 +2436,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	}
 	if(strcmp(cmd, "/warp", true) == 0) //Warppowder
 	{
-		if(Warppowder[playerid] == 1)
+		if(Warppowder[playerid] == 1 && !IsPlayerInAnyVehicle(playerid))
 		{
 			Warppowder[playerid]=0;
 			SendClientMessage(playerid,COLOR_WHITE,"SERVER: Warning! Don't move until teleport!");
@@ -2285,9 +2448,13 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			wZ[playerid]=z;
 			Beam[playerid] = CreateObject(18671,x,y,z-1,0,0,0,300.0);
 		}
-		else
+		else if(Warppowder[playerid] != 1)
 		{
 			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You do not have Warppowder!");
+		}
+		else if(IsPlayerInAnyVehicle(playerid))
+		{
+			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You can not use Warpkits inside of vehicles");
 		}
 		
 		return 1;
@@ -2317,36 +2484,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 
 	}
 
-	if (strcmp(cmdtext, "/saveveh", true)==0)
-	{
-		if(IsPlayerAdmin(playerid))
-		{
-			new col1= random(12);
-			new col2 =random(12);
-			new currentveh;
-			currentveh = GetPlayerVehicleID(playerid);
-			new Float:z_rot;
-			new Float:vehx, Float:vehy, Float:vehz;
-			GetVehiclePos(currentveh, vehx, vehy, vehz);
-			GetVehicleZAngle(currentveh, z_rot);
-			if(!IsPlayerInVehicle(playerid,currentveh))
-			return SendClientMessage(playerid, COLOR_WHITE, "SERVER: You have to be inside of a vehicle!");
-			new vehpostext[256];
-			format(vehpostext, sizeof(vehpostext), "\nAddStaticVehicle(%d,%f, %f, %f, %f, %d,%d);\n", GetVehicleModel(currentveh),vehx, vehy, vehz,z_rot,col1,col2);
-			SendClientMessage(playerid,COLOR_WHITE,"SERVER: Saved vehicle");
-			new File:pos=fopen("customvehicles.txt", io_append);
-			fwrite(pos, vehpostext);
-			fclose(pos);
-			if(!fexist("customvehicles.txt"))
-			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: customvehicles.txt not created! Maybe no R/W permission?");
 
-			return 1;
-		}
-		else
-		{
-			return 0;
-		}
-	}
 	if(strcmp(cmd, "/spec", true) == 0)
 	{
 		new targetplayer;
@@ -2390,12 +2528,8 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					maxmoney = maxmoney +1;
 					new Float:x, Float:y, Float:z;
 					GetPlayerPos(playerid,x,y,z);
-
-					new Float:ra1=((frandom(3)+x+0.5));
-					new Float:ra2=((frandom(3)+y+0.5));
-					new Float:ra3=((frandom(1)+z-0.8));
-					
-					MoneyPickups[maxmoney]=CreatePickup(1212,19,ra1,ra2,ra3, 0);
+					GetXYInFrontOfPlayer(playerid,x,y,4);
+					GenerateRandomPickup(1212,19,x+0.5,x-0.5,y+0.5,y-0.5,z+0.5,z-0.5,0);
 				}
 
 			}
@@ -2436,7 +2570,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		}
 
 	}
-	/*//if(strcmp(cmd, "/freeze", true) == 0)
+	/*if(strcmp(cmd, "/freeze", true) == 0)
 	new target;	
 	if(!sscanf(cmdtext[strlen("/freeze")+1], "u", target))	
 	{
@@ -2652,7 +2786,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	}
 	if(strcmp(cmd, "/detonate", true) == 0)
 	{
-		if(PBomb[playerid] == -1 && PBombID[playerid] == 1 && IsPlayerInRangeOfPoint(playerid,100,pX[playerid],pY[playerid],pZ[playerid]))
+		if(PBomb[playerid] == -1 && PBombID[playerid] == 1 && IsPlayerInRangeOfPoint(playerid,150,pX[playerid],pY[playerid],pZ[playerid]))
 		{
 			PBombID[playerid]=0;
 			PBomb[playerid]=0;
@@ -2663,7 +2797,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		}
 		else if(!IsPlayerInRangeOfPoint(playerid,100,pX[playerid],pY[playerid],pZ[playerid]))
 		{
-			SendClientMessage(playerid, COLOR_WHITE, "SERVER: You can only detonate the bomb if your distance to it is less than 50m!");
+			SendClientMessage(playerid, COLOR_WHITE, "SERVER: You can only detonate the bomb if your distance to it is less than 150m!");
 		}
 		else
 		{
@@ -2819,8 +2953,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 }
 public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 {
-	printf("OnPlayerKeyStateChange called by %d",playerid);
-	if(PRESSED(KEY_YES) && PBomb[playerid] == -1 && PBombID[playerid] == 1 && IsPlayerInRangeOfPoint(playerid,100,pX[playerid],pY[playerid],pZ[playerid]))
+	if(PRESSED(KEY_YES) && PBomb[playerid] == -1 && PBombID[playerid] == 1 && IsPlayerInRangeOfPoint(playerid,150,pX[playerid],pY[playerid],pZ[playerid]))
 	{
 		PlayerInfo[playerid][pBombs]++;
 		PBombID[playerid]=0;
@@ -2923,7 +3056,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 	HideMenuForPlayer(ammunation,playerid);
 	HideMenuForPlayer(pistols,playerid);
 	HideMenuForPlayer(microsmg,playerid);
-	HideMenuForPlayer(shotungs,playerid);
+	HideMenuForPlayer(shotguns,playerid);
 	HideMenuForPlayer(items,playerid);
 	HideMenuForPlayer(smg,playerid);
 	HideMenuForPlayer(rifles,playerid);
@@ -3010,6 +3143,98 @@ public OnPlayerDeath(playerid, killerid, reason)
 	ResetPlayerMoney(playerid);
 
 	PKills[playerid] += 1;
+	if(BED_STATE_TEAM_ONE!=0 && FIRST_TEAM == gPlayerTeamSelection[playerid])
+	{
+		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",FIRST_TEAM_COLOR_TAG);
+		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
+		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
+		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
+		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
+		SetPlayerColor(playerid,COLOR_WHITE);
+
+
+
+	}
+	if(BED_STATE_TEAM_TWO!=0 && SECOND_TEAM == gPlayerTeamSelection[playerid])
+	{
+		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",SECOND_TEAM_COLOR_TAG);
+		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
+		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
+		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
+		//TogglePlayerSpectating(playerid, 1);
+		//PlayerSpectatePlayer(playerid, spectatekillerid);
+		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
+		SetPlayerColor(playerid,COLOR_WHITE);
+		printf("SPAWN: Case UN: %d",playerid);
+	}
+	#if defined TEAMSIZE
+	#if TEAMSIZE >= 3
+	if(BED_STATE_TEAM_THREE!=0 && THIRD_TEAM == gPlayerTeamSelection[playerid])
+	{
+		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",THIRD_TEAM_COLOR_TAG);
+		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
+		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
+		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
+		//TogglePlayerSpectating(playerid, 1);
+		//PlayerSpectatePlayer(playerid, spectatekillerid);
+		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
+		SetPlayerColor(playerid,COLOR_WHITE);
+		printf("SPAWN: Case UN: %d",playerid);
+	}
+	#endif
+	#endif
+	#if defined TEAMSIZE
+	#if TEAMSIZE >= 4
+	if(BED_STATE_TEAM_FOUR!=0 && FOURTH_TEAM == gPlayerTeamSelection[playerid])
+	{
+		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",FOURTH_TEAM_COLOR_TAG);
+		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
+		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
+		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
+		//TogglePlayerSpectating(playerid, 1);
+		//PlayerSpectatePlayer(playerid, spectatekillerid);
+		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
+		SetPlayerColor(playerid,COLOR_WHITE);
+		printf("SPAWN: Case UN: %d",playerid);
+	}
+	#endif
+	#endif
+	#if defined TEAMSIZE
+	#if TEAMSIZE >= 5
+	if(BED_STATE_TEAM_FIVE!=0 && FIFTH_TEAM == gPlayerTeamSelection[playerid])
+	{
+		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",FIFTH_TEAM_COLOR_TAG);
+		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
+		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
+		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
+		//TogglePlayerSpectating(playerid, 1);
+		//PlayerSpectatePlayer(playerid, spectatekillerid);
+		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
+		SetPlayerColor(playerid,COLOR_WHITE);
+		printf("SPAWN: Case UN: %d",playerid);
+	}
+	#endif
+	#endif
+	#if defined TEAMSIZE
+	#if TEAMSIZE == 6
+	if(BED_STATE_TEAM_SIX!=0 && SIXTH_TEAM == gPlayerTeamSelection[playerid])
+	{
+		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",SIXTH_TEAM_COLOR_TAG);
+		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
+		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
+		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
+		//TogglePlayerSpectating(playerid, 1);
+		//PlayerSpectatePlayer(playerid, spectatekillerid);
+		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
+		SetPlayerColor(playerid,COLOR_WHITE);
+		printf("SPAWN: Case UN: %d",playerid);
+	}
+	#endif
+	#endif
+	if(GetPlayerCount() >= 2)
+	{
+		TeamsAlive(false);
+	}
 	return 1;
 }
 
@@ -3244,151 +3469,34 @@ public BlowUpThisBed()
 	#endif
 }
 
+stock GetPlayerCount()
+{
+	new counter=0;
+	for(new k;k<MAX_PLAYERS;k++)
+	{
+		if(!IsPlayerConnected(k) || IsPlayerNPC(k)) continue;
+
+		counter++;
+	}
+	return counter;
+}
+
+
 public OnPlayerSpawn(playerid)
 {
 
 	if(IsPlayerNPC(playerid)) return 1;
-	if(GetTeamCount(FIRST_TEAM) == 0 && GetTeamCount(THIRD_TEAM) == 0 && GetTeamCount(SECOND_TEAM) > 0 && BED_STATE_TEAM_TWO != 0)
+
+	/*
+	if(GetPlayerCount() >= 2)
 	{
-		printf("SPAWN: Case 1: %d",playerid);
-
-		for(new i;i<MAX_PLAYERS;i++)
-		{
-			SendClientMessageEx(i,COLOR_WHITE,"SERVER: All remaining teams have been wiped. Team %s {FFFFFF}has won the game!",FIRST_TEAM_COLOR_TAG);
-		}
-		printf("Total game time: %d",totaltime);
-		SendRconCommand("gmx");
-
+		isEnd();
 	}
+	*/
 	
-	if(GetTeamCount(FIRST_TEAM) > 0 && GetTeamCount(THIRD_TEAM) == 0 && GetTeamCount(SECOND_TEAM) == 0 && BED_STATE_TEAM_ONE != 0)
-	{
 
-		
-		for(new i;i<MAX_PLAYERS;i++)
-		{
-			SendClientMessageEx(i,COLOR_WHITE,"SERVER: All remaining teams have been wiped. Team %s {FFFFFF}has won the game!",THIRD_TEAM_COLOR_TAG);
-		}
-		printf("Total game time: %d",totaltime);
-		printf("SPAWN: Case 3: %d",playerid);
-
-		SendRconCommand("gmx");
-	}
-	#if defined TEAMSIZE
-	#if TEAMSIZE >= 3
-	if(GetTeamCount(FIRST_TEAM) == 0 && GetTeamCount(THIRD_TEAM) > 0 && GetTeamCount(SECOND_TEAM) == 0 && BED_STATE_TEAM_THREE != 0)
-	{	
-		for(new i;i<MAX_PLAYERS;i++)
-		{
-			SendClientMessageEx(i,COLOR_WHITE,"SERVER: All remaining teams have been wiped. Team %s {FFFFFF}has won the game!",SECOND_TEAM_COLOR_TAG);
-		}
-		printf("Total game time: %d",totaltime);
-		printf("SPAWN: Case 2: %d",playerid);
-
-		SendRconCommand("gmx");
-	}
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE >= 3
-	if(GetTeamCount(FIRST_TEAM) == 0 && GetTeamCount(THIRD_TEAM) == 0 && GetTeamCount(SECOND_TEAM) == 0 && BED_STATE_TEAM_ONE != 0 && BED_STATE_TEAM_THREE != 0 && BED_STATE_TEAM_TWO !=0)
-	{
-
-		SendClientMessageToAll(COLOR_WHITE,"SERVER: All teams have been wiped. No one has won the game!");
-		SendRconCommand("gmx");
-		printf("SPAWN: Case 4: %d",playerid);
-	}
-	#endif
-	#endif
-	if(BED_STATE_TEAM_ONE!=0 && FIRST_TEAM == gPlayerTeamSelection[playerid])
-	{
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",FIRST_TEAM_COLOR_TAG);
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
-		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
-		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
-		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
-		SetPlayerColor(playerid,COLOR_WHITE);
-		printf("SPAWN: Case UN: %d",playerid);
-
-
-	}
-	if(BED_STATE_TEAM_TWO!=0 && SECOND_TEAM == gPlayerTeamSelection[playerid])
-	{
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",SECOND_TEAM_COLOR_TAG);
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
-		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
-		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
-		//TogglePlayerSpectating(playerid, 1);
-		//PlayerSpectatePlayer(playerid, spectatekillerid);
-		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
-		SetPlayerColor(playerid,COLOR_WHITE);
-		printf("SPAWN: Case UN: %d",playerid);
-	}
-	#if defined TEAMSIZE
-	#if TEAMSIZE >= 3
-	if(BED_STATE_TEAM_THREE!=0 && THIRD_TEAM == gPlayerTeamSelection[playerid])
-	{
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",THIRD_TEAM_COLOR_TAG);
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
-		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
-		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
-		//TogglePlayerSpectating(playerid, 1);
-		//PlayerSpectatePlayer(playerid, spectatekillerid);
-		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
-		SetPlayerColor(playerid,COLOR_WHITE);
-		printf("SPAWN: Case UN: %d",playerid);
-	}
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE >= 4
-	if(BED_STATE_TEAM_FOUR!=0 && FOURTH_TEAM == gPlayerTeamSelection[playerid])
-	{
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",FOURTH_TEAM_COLOR_TAG);
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
-		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
-		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
-		//TogglePlayerSpectating(playerid, 1);
-		//PlayerSpectatePlayer(playerid, spectatekillerid);
-		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
-		SetPlayerColor(playerid,COLOR_WHITE);
-		printf("SPAWN: Case UN: %d",playerid);
-	}
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE >= 5
-	if(BED_STATE_TEAM_FIVE!=0 && FIFTH_TEAM == gPlayerTeamSelection[playerid])
-	{
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",FIFTH_TEAM_COLOR_TAG);
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
-		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
-		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
-		//TogglePlayerSpectating(playerid, 1);
-		//PlayerSpectatePlayer(playerid, spectatekillerid);
-		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
-		SetPlayerColor(playerid,COLOR_WHITE);
-		printf("SPAWN: Case UN: %d",playerid);
-	}
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE >= 6
-	if(BED_STATE_TEAM_SIX!=0 && SIXTH_TEAM == gPlayerTeamSelection[playerid])
-	{
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",SIXTH_TEAM_COLOR_TAG);
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
-		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
-		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
-		//TogglePlayerSpectating(playerid, 1);
-		//PlayerSpectatePlayer(playerid, spectatekillerid);
-		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
-		SetPlayerColor(playerid,COLOR_WHITE);
-		printf("SPAWN: Case UN: %d",playerid);
-	}
-	#endif
-	#endif
-
+	if(gPlayerTeamSelection[playerid] == TEAM_SPECTATOR) return 1;
+	
 	TextDrawShowForPlayer(playerid,txtTimeDisp);
 	PlayerPlaySound(playerid,1188,0,0,0);
 	SetPlayerWorldBounds(playerid,MAP_WORLDBOUNDS[0][0], MAP_WORLDBOUNDS[0][1], MAP_WORLDBOUNDS[0][2], MAP_WORLDBOUNDS[0][3]);
