@@ -25,3 +25,24 @@ All notable changes to this project will be documented in this file.
 - /stealth kit which didnt work before. The player was invisible on the map all the time. No reset.
 - Map bugs on CHILLIAD and GREEN PALMS map.
 - String length of several strings due to display problems.
+
+
+## [0.1b] - 2017-03-21
+### Added
+- Added weather system for random weather.
+- Weather can be set by admins, using /weather ID
+- /dropmoney uses GenerateRandomPickup function now, to create money pickups.
+- system to check if a team has won the game. (if other teams are empty)
+- Improved several minor bugs.
+- Major changes in score system.
+- The winner of the team will now be determined if there is no player left in other teams
+- Recursive function will be called in OnPlayerDeath instead of OnPlayerSpawn now.
+- Dead player will be thrown into TEAM_SPECTATOR after death now if the bed is missing.
+- GetPlayerCount() function added to count amount of players for use in TeamsAlive(bool:value) function.
+- Recursive function TeamsAlive(bool:value) function (false/true) to count teams alive or check if there is only one team left.
+- Fighting Style menu to purchase different fightstyles.
+
+### Fix
+- Increased weapon prices due to balancing reasons.
+- Changed bomb activation radius to 150m instead of 100m.
+
