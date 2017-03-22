@@ -735,7 +735,9 @@ stock TeleportPlayerToBase(playerid)
 			gSpawnsTeam_TEAM_ONE[randSpawn][0],
 			gSpawnsTeam_TEAM_ONE[randSpawn][1],
 			gSpawnsTeam_TEAM_ONE[randSpawn][2]);	
+			SetPlayerInterior(playerid,TEAM_ONE_INTERIOR);
 		}
+		
 	case 1:
 		{
 			new str[80];
@@ -746,6 +748,7 @@ stock TeleportPlayerToBase(playerid)
 			gSpawnsTeam_TEAM_TWO[randSpawn][0],
 			gSpawnsTeam_TEAM_TWO[randSpawn][1],
 			gSpawnsTeam_TEAM_TWO[randSpawn][2]);	
+			SetPlayerInterior(playerid,TEAM_TWO_INTERIOR);
 		}
 		
 		
@@ -765,6 +768,7 @@ stock TeleportPlayerToBase(playerid)
 			gSpawnsTeam_TEAM_THREE[randSpawn][0],
 			gSpawnsTeam_TEAM_THREE[randSpawn][1],
 			gSpawnsTeam_TEAM_THREE[randSpawn][2]);	
+			SetPlayerInterior(playerid,TEAM_THREE_INTERIOR);
 		}
 		
 		
@@ -784,6 +788,7 @@ stock TeleportPlayerToBase(playerid)
 			gSpawnsTeam_TEAM_FOUR[randSpawn][0],
 			gSpawnsTeam_TEAM_FOUR[randSpawn][1],
 			gSpawnsTeam_TEAM_FOUR[randSpawn][2]);
+			SetPlayerInterior(playerid,TEAM_FOUR_INTERIOR);
 		}
 		
 		#endif
@@ -802,6 +807,7 @@ stock TeleportPlayerToBase(playerid)
 			gSpawnsTeam_TEAM_FIVE[randSpawn][0],
 			gSpawnsTeam_TEAM_FIVE[randSpawn][1],
 			gSpawnsTeam_TEAM_FIVE[randSpawn][2]);
+			SetPlayerInterior(playerid,TEAM_FIVE_INTERIOR);
 		}
 		
 		#endif
@@ -819,7 +825,8 @@ stock TeleportPlayerToBase(playerid)
 			SetPlayerPos(playerid,
 			gSpawnsTeam_TEAM_SIX[randSpawn][0],
 			gSpawnsTeam_TEAM_SIX[randSpawn][1],
-			gSpawnsTeam_TEAM_SIX[randSpawn][2]);	
+			gSpawnsTeam_TEAM_SIX[randSpawn][2]);
+			SetPlayerInterior(playerid,TEAM_SIX_INTERIOR);			
 		}
 		
 		#endif
@@ -1125,7 +1132,6 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 		{
 			maxmoney -= 1;
 			GivePlayerMoney(playerid, 1000);
-			//printf("ID picked up: %d",maxmoney);
 			MoneyPickups[index]=-1;
 			quickSort(MoneyPickups,0,sizeof(MoneyPickups)-1);
 			DestroyPickup(pickupid);
@@ -1242,7 +1248,7 @@ stock quickSort(array[], left, right)
 	new
 	tempLeft = left,
 	tempRight = right,
-	pivot = array[(left + right) / 2],
+	pivot = array[(left + right) / 2],//Worst case O(log n)
 	tempVar
 	;
 	while(tempLeft <= tempRight)
@@ -1798,7 +1804,7 @@ public OnPlayerSelectedMenuRow(playerid, row)
 		case 4:	if(GetPlayerMoney(playerid) >= 2500)
 			{
 				GivePlayerMoney(playerid,-2500);
-				SetPlayerArmour(playerid,100.0);
+				SetPlayerHealth(playerid,100.0);
 			}
 			else
 			{
