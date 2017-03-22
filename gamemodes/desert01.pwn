@@ -154,7 +154,6 @@ new gPlayerHasTeamSelected[MAX_PLAYERS];
 new gPlayerLastTeamSelectionTick[MAX_PLAYERS];
 new PlayerInfo[MAX_PLAYERS][pInfo];
 new BombObject[MAX_PLAYERS];
-new Shop_Counter;
 
 //--------------------------------------------------------------
 
@@ -554,8 +553,8 @@ public OnGameModeInit()
 		AddMenuItem(items,0,"  Parachute $2500");
 		AddMenuItem(items,0,"  Spraycan $2500");
 		AddMenuItem(items,0,"  Camera $2500");
-		AddMenuItem(items,0,"  Fightstyles");
 		AddMenuItem(items,0,"  Health $2500");
+		AddMenuItem(items,0,"  Fightstyles");
 		AddMenuItem(items,0,"Back");
 	}
 	fightstyles=CreateMenu("~w~Ammu-Nation",1,20,150,150);
@@ -1126,7 +1125,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 		{
 			maxmoney -= 1;
 			GivePlayerMoney(playerid, 1000);
-			printf("ID picked up: %d",maxmoney);
+			//printf("ID picked up: %d",maxmoney);
 			MoneyPickups[index]=-1;
 			quickSort(MoneyPickups,0,sizeof(MoneyPickups)-1);
 			DestroyPickup(pickupid);
@@ -1182,7 +1181,7 @@ public UpdateTimeAndWeather()
 		PlayerInfo[i][pAdmin]=1;	
 	}
 
-	printf("Executing UpdateTimeAndWeather");
+	//printf("Executing UpdateTimeAndWeather");
 	
 	SetWorldTime(hour);
 
@@ -1507,7 +1506,7 @@ ClassSel_SwitchToNextTeam(playerid)
 	PlayerPlaySound(playerid,1052,0.0,0.0,0.0);
 	gPlayerLastTeamSelectionTick[playerid] = GetTickCount();
 	ClassSel_SetupSelectedTeam(playerid);
-	printf("ClassSel_SwitchToNextTeam");
+	//printf("ClassSel_SwitchToNextTeam");
 }
 
 
@@ -1556,7 +1555,7 @@ ClassSel_SwitchToPreviousTeam(playerid)
 	PlayerPlaySound(playerid,1053,0.0,0.0,0.0);
 	gPlayerLastTeamSelectionTick[playerid] = GetTickCount();
 	ClassSel_SetupSelectedTeam(playerid);
-	printf("ClassSel_SwitchToPreviousTeam");
+	//printf("ClassSel_SwitchToPreviousTeam");
 }
 
 ClassSel_HandleTeamSelection(playerid)
@@ -1582,7 +1581,7 @@ ClassSel_HandleTeamSelection(playerid)
 		TogglePlayerSpectating(playerid,0);
 		return;
 	}
-	printf("ClassSel_HandleTeamSelection");
+	//printf("ClassSel_HandleTeamSelection");
 	if(lr > 0) {
 		ClassSel_SwitchToNextTeam(playerid);
 	}
@@ -1595,7 +1594,7 @@ ClassSel_HandleTeamSelection(playerid)
 public OnPlayerRequestClass(playerid, classid)
 {
 	if(IsPlayerNPC(playerid)) return 1;
-	printf("OnPlayerRequestClass");
+	//printf("OnPlayerRequestClass");
 	if(gPlayerHasTeamSelected[playerid]) {
 		ClassSel_SetupCharSelection(playerid);
 		return 1;
@@ -2155,7 +2154,7 @@ public OnPlayerTakeDamage(playerid, issuerid, Float: amount, weaponid, bodypart)
 }
 
 
-stock TeamsAlive(bool:value)
+stock GameOver(bool:value)
 {
 	new i=0,count=0;
 	while(i<TEAMSIZE)
@@ -2171,7 +2170,7 @@ stock TeamsAlive(bool:value)
 	{
 		case 1:
 		{
-			switch(TeamsAlive(true))
+			switch(GameOver(true))
 			{
 				case FIRST_TEAM:
 				{
@@ -3165,7 +3164,6 @@ public OnPlayerDeath(playerid, killerid, reason)
 		//PlayerSpectatePlayer(playerid, spectatekillerid);
 		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
 		SetPlayerColor(playerid,COLOR_WHITE);
-		printf("SPAWN: Case UN: %d",playerid);
 	}
 	#if defined TEAMSIZE
 	#if TEAMSIZE >= 3
@@ -3179,7 +3177,6 @@ public OnPlayerDeath(playerid, killerid, reason)
 		//PlayerSpectatePlayer(playerid, spectatekillerid);
 		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
 		SetPlayerColor(playerid,COLOR_WHITE);
-		printf("SPAWN: Case UN: %d",playerid);
 	}
 	#endif
 	#endif
@@ -3195,7 +3192,6 @@ public OnPlayerDeath(playerid, killerid, reason)
 		//PlayerSpectatePlayer(playerid, spectatekillerid);
 		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
 		SetPlayerColor(playerid,COLOR_WHITE);
-		printf("SPAWN: Case UN: %d",playerid);
 	}
 	#endif
 	#endif
@@ -3211,7 +3207,6 @@ public OnPlayerDeath(playerid, killerid, reason)
 		//PlayerSpectatePlayer(playerid, spectatekillerid);
 		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
 		SetPlayerColor(playerid,COLOR_WHITE);
-		printf("SPAWN: Case UN: %d",playerid);
 	}
 	#endif
 	#endif
@@ -3227,13 +3222,12 @@ public OnPlayerDeath(playerid, killerid, reason)
 		//PlayerSpectatePlayer(playerid, spectatekillerid);
 		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
 		SetPlayerColor(playerid,COLOR_WHITE);
-		printf("SPAWN: Case UN: %d",playerid);
 	}
 	#endif
 	#endif
 	if(GetPlayerCount() >= 2)
 	{
-		TeamsAlive(false);
+		GameOver(false);
 	}
 	return 1;
 }
@@ -3670,7 +3664,6 @@ public TEAM_MONEY()//Brown
 	{
 		GenerateRandomPickup(1212,19,MoneySpawns[m][0],MoneySpawns[m][1],MoneySpawns[m][2],MoneySpawns[m][3],MoneySpawns[m][4],MoneySpawns[m][5],0);
 	}
-	printf("Generated Pickup");
 }
 
 //----------------------------------------------------------
@@ -3710,9 +3703,7 @@ stock CreateGlobalActor(actorid,modelid,Float:ax,Float:ay,Float:az,Float:angle,F
 	GetXYInFrontOfActor(actorid, x, y, distance);
 	ActorPickups[pickupid] = CreatePickup(1210,2,x,y,z,-1);
 	SetActorInvulnerable(actorid, true);
-	printf("Actor created, pickupid %d",pickupid);
-	printf("Array pickupid %d",ActorPickups[Shop_Counter++]);
-	return pickupid;
+	return 1;
 }
 
 stock GetXYInFrontOfActor(actorid, &Float:x, &Float:y, Float:distance)
