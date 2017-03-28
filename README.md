@@ -46,3 +46,12 @@ All notable changes to this project will be documented in this file.
 - Increased weapon prices due to balancing reasons.
 - Changed bomb activation radius to 150m instead of 100m.
 
+## [0.1b] - 2017-03-28
+### Added
+- Function GivePlayerMoneyText to give or remove money from a player and display gametext.
+- #define to change the value of Money Pickups.
+
+
+### Fix
+- Fixed minor bugs.
+- Fixed y_ini problems.
