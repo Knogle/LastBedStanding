@@ -101,6 +101,8 @@ enum weather_info
 #define COLOR_BLUE 0x0000BBAA
 #define COLOR_NAVY 0x000080AA
 
+#define MoneyVal 1000
+
 
 
 
@@ -154,6 +156,7 @@ new gPlayerHasTeamSelected[MAX_PLAYERS];
 new gPlayerLastTeamSelectionTick[MAX_PLAYERS];
 new PlayerInfo[MAX_PLAYERS][pInfo];
 new BombObject[MAX_PLAYERS];
+new Shop_Counter;
 
 //--------------------------------------------------------------
 
@@ -553,8 +556,8 @@ public OnGameModeInit()
 		AddMenuItem(items,0,"  Parachute $2500");
 		AddMenuItem(items,0,"  Spraycan $2500");
 		AddMenuItem(items,0,"  Camera $2500");
-		AddMenuItem(items,0,"  Health $2500");
 		AddMenuItem(items,0,"  Fightstyles");
+		AddMenuItem(items,0,"  Health $2500");
 		AddMenuItem(items,0,"Back");
 	}
 	fightstyles=CreateMenu("~w~Ammu-Nation",1,20,150,150);
@@ -735,9 +738,7 @@ stock TeleportPlayerToBase(playerid)
 			gSpawnsTeam_TEAM_ONE[randSpawn][0],
 			gSpawnsTeam_TEAM_ONE[randSpawn][1],
 			gSpawnsTeam_TEAM_ONE[randSpawn][2]);	
-			SetPlayerInterior(playerid,TEAM_ONE_INTERIOR);
 		}
-		
 	case 1:
 		{
 			new str[80];
@@ -748,7 +749,6 @@ stock TeleportPlayerToBase(playerid)
 			gSpawnsTeam_TEAM_TWO[randSpawn][0],
 			gSpawnsTeam_TEAM_TWO[randSpawn][1],
 			gSpawnsTeam_TEAM_TWO[randSpawn][2]);	
-			SetPlayerInterior(playerid,TEAM_TWO_INTERIOR);
 		}
 		
 		
@@ -768,7 +768,6 @@ stock TeleportPlayerToBase(playerid)
 			gSpawnsTeam_TEAM_THREE[randSpawn][0],
 			gSpawnsTeam_TEAM_THREE[randSpawn][1],
 			gSpawnsTeam_TEAM_THREE[randSpawn][2]);	
-			SetPlayerInterior(playerid,TEAM_THREE_INTERIOR);
 		}
 		
 		
@@ -788,7 +787,6 @@ stock TeleportPlayerToBase(playerid)
 			gSpawnsTeam_TEAM_FOUR[randSpawn][0],
 			gSpawnsTeam_TEAM_FOUR[randSpawn][1],
 			gSpawnsTeam_TEAM_FOUR[randSpawn][2]);
-			SetPlayerInterior(playerid,TEAM_FOUR_INTERIOR);
 		}
 		
 		#endif
@@ -807,7 +805,6 @@ stock TeleportPlayerToBase(playerid)
 			gSpawnsTeam_TEAM_FIVE[randSpawn][0],
 			gSpawnsTeam_TEAM_FIVE[randSpawn][1],
 			gSpawnsTeam_TEAM_FIVE[randSpawn][2]);
-			SetPlayerInterior(playerid,TEAM_FIVE_INTERIOR);
 		}
 		
 		#endif
@@ -825,8 +822,7 @@ stock TeleportPlayerToBase(playerid)
 			SetPlayerPos(playerid,
 			gSpawnsTeam_TEAM_SIX[randSpawn][0],
 			gSpawnsTeam_TEAM_SIX[randSpawn][1],
-			gSpawnsTeam_TEAM_SIX[randSpawn][2]);
-			SetPlayerInterior(playerid,TEAM_SIX_INTERIOR);			
+			gSpawnsTeam_TEAM_SIX[randSpawn][2]);	
 		}
 		
 		#endif
@@ -946,7 +942,7 @@ stock SellPlayerWeapon(playerid,cost,weaponid,ammo)
 		SendClientMessage(playerid,COLOR_WHITE,spentstring);
 		printf("%d spent %d to purchase weapon %d",playerid,cost,weaponid);
 		GivePlayerWeapon(playerid,weaponid,ammo);
-		GivePlayerMoney(playerid,-cost);
+		GivePlayerMoneyText(playerid,-cost);
 		TogglePlayerControllable(playerid,true);
 	}
 	else
@@ -970,7 +966,7 @@ stock SellPlayerFightingStyle(playerid,cost,style)
 		format(spentstring,sizeof(spentstring),"SERVER: You spent $%d to purchase this style!",cost);
 		SendClientMessage(playerid,COLOR_WHITE,spentstring);
 		SetPlayerFightingStyle(playerid,style);
-		GivePlayerMoney(playerid,-cost);
+		GivePlayerMoneyText(playerid,-cost);
 		TogglePlayerControllable(playerid,true);
 	}
 	else
@@ -1131,7 +1127,8 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 	case MONEY_TYPE:
 		{
 			maxmoney -= 1;
-			GivePlayerMoney(playerid, 1000);
+			GivePlayerMoney(playerid, MoneyVal);
+			printf("ID picked up: %d",maxmoney);
 			MoneyPickups[index]=-1;
 			quickSort(MoneyPickups,0,sizeof(MoneyPickups)-1);
 			DestroyPickup(pickupid);
@@ -1187,7 +1184,7 @@ public UpdateTimeAndWeather()
 		PlayerInfo[i][pAdmin]=1;	
 	}
 
-	//printf("Executing UpdateTimeAndWeather");
+	printf("Executing UpdateTimeAndWeather");
 	
 	SetWorldTime(hour);
 
@@ -1248,7 +1245,7 @@ stock quickSort(array[], left, right)
 	new
 	tempLeft = left,
 	tempRight = right,
-	pivot = array[(left + right) / 2],//Worst case O(log n)
+	pivot = array[(left + right) / 2],
 	tempVar
 	;
 	while(tempLeft <= tempRight)
@@ -1512,7 +1509,7 @@ ClassSel_SwitchToNextTeam(playerid)
 	PlayerPlaySound(playerid,1052,0.0,0.0,0.0);
 	gPlayerLastTeamSelectionTick[playerid] = GetTickCount();
 	ClassSel_SetupSelectedTeam(playerid);
-	//printf("ClassSel_SwitchToNextTeam");
+	printf("ClassSel_SwitchToNextTeam");
 }
 
 
@@ -1561,7 +1558,7 @@ ClassSel_SwitchToPreviousTeam(playerid)
 	PlayerPlaySound(playerid,1053,0.0,0.0,0.0);
 	gPlayerLastTeamSelectionTick[playerid] = GetTickCount();
 	ClassSel_SetupSelectedTeam(playerid);
-	//printf("ClassSel_SwitchToPreviousTeam");
+	printf("ClassSel_SwitchToPreviousTeam");
 }
 
 ClassSel_HandleTeamSelection(playerid)
@@ -1587,7 +1584,7 @@ ClassSel_HandleTeamSelection(playerid)
 		TogglePlayerSpectating(playerid,0);
 		return;
 	}
-	//printf("ClassSel_HandleTeamSelection");
+	printf("ClassSel_HandleTeamSelection");
 	if(lr > 0) {
 		ClassSel_SwitchToNextTeam(playerid);
 	}
@@ -1600,7 +1597,7 @@ ClassSel_HandleTeamSelection(playerid)
 public OnPlayerRequestClass(playerid, classid)
 {
 	if(IsPlayerNPC(playerid)) return 1;
-	//printf("OnPlayerRequestClass");
+	printf("OnPlayerRequestClass");
 	if(gPlayerHasTeamSelected[playerid]) {
 		ClassSel_SetupCharSelection(playerid);
 		return 1;
@@ -1783,7 +1780,7 @@ public OnPlayerSelectedMenuRow(playerid, row)
 		case 0:
 			if(GetPlayerMoney(playerid) >= 2500)
 			{
-				GivePlayerMoney(playerid,-2500);
+				GivePlayerMoneyText(playerid,-2500);
 				SetPlayerArmour(playerid,100.0);
 			}
 			else
@@ -1803,8 +1800,8 @@ public OnPlayerSelectedMenuRow(playerid, row)
 
 		case 4:	if(GetPlayerMoney(playerid) >= 2500)
 			{
-				GivePlayerMoney(playerid,-2500);
-				SetPlayerHealth(playerid,100.0);
+				GivePlayerMoneyText(playerid,-2500);
+				SetPlayerArmour(playerid,100.0);
 			}
 			else
 			{
@@ -2043,7 +2040,7 @@ public OnPlayerSelectedMenuRow(playerid, row)
 				if(GetPlayerMoney(playerid) > 10000 && PSkill[playerid] == 0)
 				{
 					PSkill[playerid]=1;
-					GivePlayerMoney(playerid,-10000);
+					GivePlayerMoneyText(playerid,-10000);
 					SendClientMessage(playerid, 0xFFFFFFFF, "SERVER: Skill upgraded");
 					SetPlayerSkillLevel(playerid,WEAPONSKILL_PISTOL,1000);
 					SetPlayerSkillLevel(playerid,WEAPONSKILL_PISTOL_SILENCED,1000);
@@ -2077,7 +2074,7 @@ public OnPlayerSelectedMenuRow(playerid, row)
 				{
 					PStealth[playerid]=1;
 					SendClientMessage(playerid,COLOR_WHITE,"SERVER: You are equipped with a stealth kit. You can use /stealth to hide yourself");
-					GivePlayerMoney(playerid,-85000);
+					GivePlayerMoneyText(playerid,-85000);
 					TogglePlayerControllable(playerid,1);
 				}
 				else
@@ -2093,7 +2090,7 @@ public OnPlayerSelectedMenuRow(playerid, row)
 				SendClientMessage(playerid, 0xFFFFFFFF, "SERVER: You have bought a bomb! Now you can place bombs by using /dropbomb!");
 				ShowMenuForPlayer(shopmenu,playerid);
 				TogglePlayerControllable(playerid,false);
-				GivePlayerMoney(playerid,-100000);
+				GivePlayerMoneyText(playerid,-100000);
 			}
 			else if(PBomb[playerid] != 0)
 			{
@@ -2113,7 +2110,7 @@ public OnPlayerSelectedMenuRow(playerid, row)
 				SendClientMessage(playerid, 0xFFFFFFFF, "SERVER: You have bought a Warpkit! You can teleport yourself back to your base by using /warp");
 				ShowMenuForPlayer(shopmenu,playerid);
 				TogglePlayerControllable(playerid,false);
-				GivePlayerMoney(playerid,-50000);
+				GivePlayerMoneyText(playerid,-50000);
 			}
 			else if(Warppowder[playerid] != 0)
 			{
@@ -2160,7 +2157,7 @@ public OnPlayerTakeDamage(playerid, issuerid, Float: amount, weaponid, bodypart)
 }
 
 
-stock GameOver(bool:value)
+stock TeamsAlive(bool:value)
 {
 	new i=0,count=0;
 	while(i<TEAMSIZE)
@@ -2176,7 +2173,7 @@ stock GameOver(bool:value)
 	{
 		case 1:
 		{
-			switch(GameOver(true))
+			switch(TeamsAlive(true))
 			{
 				case FIRST_TEAM:
 				{
@@ -2515,19 +2512,16 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		new dropval;
 		if(sscanf(cmdtext[strlen("/dropmoney")+1], "i", dropval))
 		return SendClientMessage(playerid, COLOR_WHITE, "USAGE: /dropmoney [value]");
-		if(GetPlayerMoney(playerid) >= dropval && maxmoney <= 4000 && dropval > 0 && dropval <= 100000 && (maxmoney+(dropval/1000))<(MAX_PICKUPS-sizeof(ActorPickups)-sizeof(InfoPickups)-1-((dropval/1000)+maxmoney)) && dropval != 0 && !IsPlayerInAnyVehicle(playerid))
+		if(GetPlayerMoney(playerid) >= dropval && maxmoney <= 4000 && dropval > 0 && dropval <= 100000 && (maxmoney+(dropval/MoneyVal))<(MAX_PICKUPS-sizeof(ActorPickups)-sizeof(InfoPickups)-1-((dropval/1000)+maxmoney)) && dropval != 0 && !IsPlayerInAnyVehicle(playerid))
 		{
-			if(dropval%1000 == 0)
+			if(dropval%MoneyVal == 0)
 			{
-				new moneydrop[32];
 				new dropstring[32];
 				format(dropstring,sizeof(dropstring),"SERVER: Dropped $%d",dropval);
-				format(moneydrop,sizeof(moneydrop), "~r~ -%d~y~$",dropval);
-				GameTextForPlayer(playerid,moneydrop,1000,1);
 				SendClientMessage(playerid, COLOR_WHITE, dropstring);
-				GivePlayerMoney(playerid,-dropval);
+				GivePlayerMoneyText(playerid,-dropval);
 
-				for(new i; i <dropval/1000; i++)
+				for(new i; i <dropval/MoneyVal; i++)
 				{
 
 					maxmoney = maxmoney +1;
@@ -2541,9 +2535,9 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			else
 			{
 
-				if(dropval%1000 != 0)
+				if(dropval%MoneyVal != 0)
 				{
-					SendClientMessage(playerid, COLOR_WHITE, "SERVER: The desired value must be divisible by $1000");
+					SendClientMessageEx(playerid, COLOR_WHITE, "SERVER: The desired value must be divisible by $%d",MoneyVal);
 				}
 
 			}
@@ -2565,12 +2559,12 @@ public OnPlayerCommandText(playerid, cmdtext[])
 
 				SendClientMessage(playerid, COLOR_WHITE, "SERVER: You can not drop nothing!");
 			}
-			if((maxmoney+dropval/1000)>=4095 && dropval <= 100000)
+			if((maxmoney+dropval/MoneyVal)>=4095 && dropval <= 100000)
 			{
 				new allowmoney[128];
-				format(allowmoney,sizeof(allowmoney),"SERVER: Because of limitations you can not drop more than $%d right now!",(4095-maxmoney)*1000);
+				format(allowmoney,sizeof(allowmoney),"SERVER: Because of limitations you can not drop more than $%d right now!",(4095-maxmoney)*MoneyVal);
 				SendClientMessage(playerid,COLOR_WHITE,allowmoney);
-				printf("Player may only drop %d",(4095-maxmoney)*1000);
+				printf("Player may only drop %d",(4095-maxmoney)*MoneyVal);
 			}
 		}
 
@@ -3052,8 +3046,6 @@ public OnPlayerDeath(playerid, killerid, reason)
 	
 	new pname[MAX_PLAYER_NAME];
 	GetPlayerName(playerid, pname, sizeof(pname));
-	new moneyplayerid[145];
-	new moneykillerid[145];
 	new matediedstringgrey[128];
 	new matediedstringred[128];
 	new matediedstringblue[128];
@@ -3134,14 +3126,11 @@ public OnPlayerDeath(playerid, killerid, reason)
 	TextDrawHideForPlayer(playerid,txtTimeDisp);
 	playercash = GetPlayerMoney(playerid);
 	ResetPlayerMoney(playerid);
-	format(moneyplayerid,sizeof(moneyplayerid), "~r~ -%d~y~$",playercash);
-	GameTextForPlayer(playerid,moneyplayerid,1000,1);
-	GivePlayerMoney(killerid, playercash);
+	GivePlayerMoneyText(playerid, -playercash);
 	LastMoney[playerid]=playercash;
 	if(killerid != playerid && killerid != INVALID_PLAYER_ID)
 	{
-		format(moneykillerid,sizeof(moneykillerid), "~g~ %d~y~$",playercash);
-		GameTextForPlayer(killerid,moneykillerid,1000,1);
+		GivePlayerMoneyText(killerid,playercash);
 	}
 	
 	
@@ -3170,6 +3159,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 		//PlayerSpectatePlayer(playerid, spectatekillerid);
 		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
 		SetPlayerColor(playerid,COLOR_WHITE);
+		printf("SPAWN: Case UN: %d",playerid);
 	}
 	#if defined TEAMSIZE
 	#if TEAMSIZE >= 3
@@ -3183,6 +3173,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 		//PlayerSpectatePlayer(playerid, spectatekillerid);
 		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
 		SetPlayerColor(playerid,COLOR_WHITE);
+		printf("SPAWN: Case UN: %d",playerid);
 	}
 	#endif
 	#endif
@@ -3198,6 +3189,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 		//PlayerSpectatePlayer(playerid, spectatekillerid);
 		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
 		SetPlayerColor(playerid,COLOR_WHITE);
+		printf("SPAWN: Case UN: %d",playerid);
 	}
 	#endif
 	#endif
@@ -3213,6 +3205,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 		//PlayerSpectatePlayer(playerid, spectatekillerid);
 		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
 		SetPlayerColor(playerid,COLOR_WHITE);
+		printf("SPAWN: Case UN: %d",playerid);
 	}
 	#endif
 	#endif
@@ -3228,12 +3221,13 @@ public OnPlayerDeath(playerid, killerid, reason)
 		//PlayerSpectatePlayer(playerid, spectatekillerid);
 		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
 		SetPlayerColor(playerid,COLOR_WHITE);
+		printf("SPAWN: Case UN: %d",playerid);
 	}
 	#endif
 	#endif
 	if(GetPlayerCount() >= 2)
 	{
-		GameOver(false);
+		TeamsAlive(false);
 	}
 	return 1;
 }
@@ -3670,6 +3664,7 @@ public TEAM_MONEY()//Brown
 	{
 		GenerateRandomPickup(1212,19,MoneySpawns[m][0],MoneySpawns[m][1],MoneySpawns[m][2],MoneySpawns[m][3],MoneySpawns[m][4],MoneySpawns[m][5],0);
 	}
+	printf("Generated Pickup");
 }
 
 //----------------------------------------------------------
@@ -3709,7 +3704,9 @@ stock CreateGlobalActor(actorid,modelid,Float:ax,Float:ay,Float:az,Float:angle,F
 	GetXYInFrontOfActor(actorid, x, y, distance);
 	ActorPickups[pickupid] = CreatePickup(1210,2,x,y,z,-1);
 	SetActorInvulnerable(actorid, true);
-	return 1;
+	printf("Actor created, pickupid %d",pickupid);
+	printf("Array pickupid %d",ActorPickups[Shop_Counter++]);
+	return pickupid;
 }
 
 stock GetXYInFrontOfActor(actorid, &Float:x, &Float:y, Float:distance)
@@ -3719,6 +3716,17 @@ stock GetXYInFrontOfActor(actorid, &Float:x, &Float:y, Float:distance)
 	GetActorFacingAngle(actorid, a);
 	x += (distance * floatsin(-a, degrees));
 	y += (distance * floatcos(-a, degrees));
+}
+
+stock GivePlayerMoneyText(playerid,value)
+{
+	new moneyplayerid[32];
+	if(value < 0)
+	format(moneyplayerid,sizeof(moneyplayerid), "~r~ -%d~y~$",value);
+	if(value > 0)
+	format(moneyplayerid,sizeof(moneyplayerid), "~g~ %d~y~$",value);
+	GameTextForPlayer(playerid,moneyplayerid,1000,1);
+	GivePlayerMoney(playerid,value);	
 }
 ClassSel_InitTextDraws()
 {
