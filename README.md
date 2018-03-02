@@ -1,6 +1,8 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## Initial Release
+
 ## [0.1a] - 2017-03-14
 ### Added
 - Binarysearch instead of iterators for pickup system.
