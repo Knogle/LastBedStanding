@@ -28,11 +28,6 @@
 #define COLOR_TEAM_TWO_TD 0xAA3333FF //Red
 #define COLOR_TEAM_THREE_TD 0x0000BBFF //Blue
 
-#define COLOR_TEAM_ONE_STEALTH 0xAFAFAF00 //Grey
-#define COLOR_TEAM_TWO_STEALTH 0xAA333300 //Red
-#define COLOR_TEAM_THREE_STEALTH 0x0000BB00 //Blue
-
-
 
 //Where the teams are located..
 #define FIRST_TEAM_LOCATION "Area 51"
@@ -72,8 +67,9 @@ stock const Float:MoneySpawns[][]={
 
 
 stock const Float:MAP_WORLDBOUNDS[][]={
-	{1086.0, -992.0 , 2944.0, 797.0}
+	{ 700.6725, -875.8406, 2849.402, 1284.566}
 };
+
 
 stock const Float:ClassSel_SetupTeamTEAM_POS[][]={
 	{136.5640,1937.6123,68.7587},//Grey

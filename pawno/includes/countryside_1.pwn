@@ -29,16 +29,13 @@
 #define COLOR_TEAM_THREE 0x80800055 //Olive
 #define COLOR_TEAM_FOUR 0x7FFFD455 //Aqua
 
-// TD Colors
+// TD Colors#define getInv(%0) (((%0)>>8)<<8)
 #define COLOR_TEAM_ONE_TD 0x8B4513FF //Brown
 #define COLOR_TEAM_TWO_TD 0x00A86BFF //Jade
 #define COLOR_TEAM_THREE_TD 0x808000FF //Olive
 #define COLOR_TEAM_FOUR_TD 0x7FFFD4FF //Aqua
 
-#define COLOR_TEAM_ONE_STEALTH 0x8B451300 //Brown
-#define COLOR_TEAM_TWO_STEALTH 0x00A86B00 //Jade
-#define COLOR_TEAM_THREE_STEALTH 0x80800000 //Olive
-#define COLOR_TEAM_FOUR_STEALTH 0x7FFFD400 //Aqua
+
 
 
 

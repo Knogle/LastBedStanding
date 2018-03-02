@@ -47,14 +47,6 @@
 #define COLOR_TEAM_FIVE_TD 0xAFAFAFFF //Grey
 #define COLOR_TEAM_SIX_TD 0x8B4513FF //Brown
 
-#define COLOR_TEAM_ONE_STEALTH 0xF5F5DC00 //Beige
-#define COLOR_TEAM_TWO_STEALTH 0x4B008200 //Indigo
-#define COLOR_TEAM_THREE_STEALTH 0x29AB8700 //Green
-#define COLOR_TEAM_FOUR_STEALTH 0x80800000 //Olive
-#define COLOR_TEAM_FIVE_STEALTH 0xAFAFAF00 //Grey
-#define COLOR_TEAM_SIX_STEALTH 0x8B451300 //Brown
-
-
 
 //Where the teams are located..
 #define FIRST_TEAM_LOCATION "Back o' Beyond"

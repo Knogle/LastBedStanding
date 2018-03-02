@@ -51,7 +51,14 @@ All notable changes to this project will be documented in this file.
 - Function GivePlayerMoneyText to give or remove money from a player and display gametext.
 - #define to change the value of Money Pickups.
 
+## [0.1b] - 2017-03-28
+### Added
+- Function GivePlayerMoneyText to give or remove money from a player and display gametext.
+- #define to change the value of Money Pickups.
 
+## [0.1.3a] - 2018-03-02
 ### Fix
-- Fixed minor bugs.
+- Fixed major bugs.
 - Fixed y_ini problems.
+- Fixed a huge amount of bugs.
+- Code optimization
