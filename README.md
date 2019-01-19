@@ -64,3 +64,22 @@ All notable changes to this project will be documented in this file.
 - Fixed y_ini problems.
 - Fixed a huge amount of bugs.
 - Code optimization
+
+
+## [1.0.0] - 2018-03-02
+### Added
+- Fixed major bugs.
+- Removed y_ini
+- Fixed a huge amount of bugs.
+- Code optimization
+- Added Login/Register system using MySQL
+- Added Salt + AES-256 support for security matters
+- MySQL table will be altered if rows do not exist
+- Added round system, deathmatch like to get a real game running
+- Added MySQL support using the newest plugin and include
+- Added a scoreboard shown at the end of a game
+- Gamemode will now restart automatically to change a map after a team has won
+- First stable gamemode, has been tested for a while right now. Please report any bugs
+- Added 60 seconds countdown when there is a sufficient amount of players.
+- Players are invincible during the countdown phase.
+
