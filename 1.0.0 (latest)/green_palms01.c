@@ -93,7 +93,6 @@ enum weather_info
 
 #define MAPTYPE GREEN_PALMS
 
-
 #define PRESSED(%0) \
 	(((newkeys & (%0)) == (%0)) && ((oldkeys & (%0)) != (%0)))	
 
@@ -2946,9 +2945,17 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		SendClientMessage(playerid,COLOR_WHITE,astring);
 
 	}
-	if(strcmp(cmd, "/finish", true) == 0) 
+	if(strcmp(cmd, "/help", true) == 0) 
 	{
-		FinishedGame();
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: How to play"); 
+				SendClientMessage(playerid,COLOR_WHITE,"The goal of this mode, is to destroy the enemie's bed and wipe out all the remaining players to determine the winner team."); 
+				SendClientMessage(playerid,COLOR_WHITE,"You can use the /blowup command to destroy and enemies bed!");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: How to destroy a bed?");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: Get close to the enemie's bed and use /blowup to destroy it!");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: What can i do if i am unable to respawn due to a destroyed bed?");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: You can use the command /spec [playerid] to spectate other players!");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: When does the game ends?");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: After a winning team is determined, means if only one team remains.");
 	}
 	if(strcmp(cmd, "/compare", true) == 0) 
 	{
@@ -3246,6 +3253,10 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			return SendClientMessageEx(playerid, COLOR_WHITE,"SERVER: Cannot kill Player %d, player %d is part of Team %s",targetplayer,targetplayer,GetPlayerTeamColorTag(targetplayer));
 			SetPlayerHealth(targetplayer,0.0);
 		}	
+		else
+		{
+			if(!GameHasStarted) SetPlayerHealth(playerid,0);
+		}
 	}
 	if(strcmp(cmd, "/givecash", true) == 0)
 	{
@@ -3486,12 +3497,12 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					PlayerInfo[playerid][pBeds]+=1;	
 					
 
-					if(i == 0 && BED_STATE_TEAM_ONE !=-1 )
+					if(i == 0 && BED_STATE_TEAM_ONE !=-1 || BED_STATE_TEAM_ONE !=-2 )
 					{
 						BED_STATE_TEAM_ONE=-1;
 						SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#FIRST_TEAM_COLOR_TAG);
 					}
-					if(i == 1 && BED_STATE_TEAM_TWO !=-1 )
+					if(i == 1 && BED_STATE_TEAM_TWO !=-1 || BED_STATE_TEAM_TWO !=-2 )
 					{
 						BED_STATE_TEAM_THREE=-1;
 						SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#SECOND_TEAM_COLOR_TAG);
@@ -3499,7 +3510,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					
 					#if defined TEAMSIZE
 					#if TEAMSIZE >=3
-					if(i == 2 && BED_STATE_TEAM_THREE !=-1 )
+					if(i == 2 && BED_STATE_TEAM_THREE !=-1 || BED_STATE_TEAM_THREE !=-2 )
 					{
 						BED_STATE_TEAM_TWO=-1;
 						SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#THIRD_TEAM_COLOR_TAG);
@@ -3508,7 +3519,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					#endif
 					#if defined TEAMSIZE
 					#if TEAMSIZE >=4
-					if(i == 3 && BED_STATE_TEAM_FOUR !=-1 )
+					if(i == 3 && BED_STATE_TEAM_FOUR !=-1 || BED_STATE_TEAM_FOUR !=-2 )
 					{
 						BED_STATE_TEAM_FOUR=-1;
 						SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#FOURTH_TEAM_COLOR_TAG);
@@ -3517,7 +3528,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					#endif
 					#if defined TEAMSIZE
 					#if TEAMSIZE >=5
-					if(i == 4 && BED_STATE_TEAM_FIVE !=-1 )
+					if(i == 4 && BED_STATE_TEAM_FIVE !=-1 || BED_STATE_TEAM_FIVE !=-2 )
 					{
 						BED_STATE_TEAM_FIVE=-1;
 						SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#FIFTH_TEAM_COLOR_TAG);
@@ -3526,7 +3537,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 					#endif
 					#if defined TEAMSIZE
 					#if TEAMSIZE >=6
-					if(i == 5 && BED_STATE_TEAM_SIX !=-1 )
+					if(i == 5 && BED_STATE_TEAM_SIX !=-1 || BED_STATE_TEAM_SIX !=-2 )
 					{
 						BED_STATE_TEAM_SIX=-1;
 						SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#SIXTH_TEAM_COLOR_TAG);
@@ -3624,12 +3635,12 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				running = 1;
 				PlayerInfo[playerid][pBeds]=GetPlayerScore(playerid);
 				SetTimer("BlowUpThisBed", bombtimer, false);
-				if(i == 0 && BED_STATE_TEAM_ONE !=-1 )
+				if(i == 0 && BED_STATE_TEAM_ONE !=-1 || BED_STATE_TEAM_ONE !=-2 )
 				{
 					BED_STATE_TEAM_ONE=-1;
 					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team "#FIRST_TEAM_COLOR_TAG);
 				}
-				if(i == 1 && BED_STATE_TEAM_TWO !=-1 )
+				if(i == 1 && BED_STATE_TEAM_TWO !=-1 || BED_STATE_TEAM_TWO !=-2 )
 				{
 					BED_STATE_TEAM_TWO=-1;
 					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team "#SECOND_TEAM_COLOR_TAG);
@@ -3637,7 +3648,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				
 				#if defined TEAMSIZE
 				#if TEAMSIZE >=3
-				if(i == 2 && BED_STATE_TEAM_THREE !=-1 )
+				if(i == 2 && BED_STATE_TEAM_THREE !=-1 || BED_STATE_TEAM_THREE !=-2 )
 				{
 					BED_STATE_TEAM_THREE=-1;
 					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team "#THIRD_TEAM_COLOR_TAG);
@@ -3646,7 +3657,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				#endif
 				#if defined TEAMSIZE
 				#if TEAMSIZE >=4
-				if(i == 3 && BED_STATE_TEAM_FOUR !=-1 )
+				if(i == 3 && BED_STATE_TEAM_FOUR !=-1 || BED_STATE_TEAM_FOUR !=-2 )
 				{
 					BED_STATE_TEAM_FOUR=-1;
 					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team "#FOURTH_TEAM_COLOR_TAG);
@@ -3655,7 +3666,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				#endif
 				#if defined TEAMSIZE
 				#if TEAMSIZE >=5
-				if(i == 4 && BED_STATE_TEAM_FIVE !=-1 )
+				if(i == 4 && BED_STATE_TEAM_FIVE !=-1 || BED_STATE_TEAM_FIVE !=-2 )
 				{
 					BED_STATE_TEAM_FIVE=-1;
 					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team "#FIFTH_TEAM_COLOR_TAG);
@@ -3664,7 +3675,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				#endif
 				#if defined TEAMSIZE
 				#if TEAMSIZE >=6
-				if(i == 5 && BED_STATE_TEAM_SIX !=-1 )
+				if(i == 5 && BED_STATE_TEAM_SIX !=-1 || BED_STATE_TEAM_SIX !=-2 )
 				{
 					BED_STATE_TEAM_SIX=-1;
 					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team "#SIXTH_TEAM_COLOR_TAG);
@@ -3725,12 +3736,12 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 				PlayerInfo[playerid][pBeds]+=1;	
 				
 
-				if(i == 0 && BED_STATE_TEAM_ONE !=-1 )
+				if(i == 0 && BED_STATE_TEAM_ONE !=-1 || BED_STATE_TEAM_ONE !=-2 )
 				{
 					BED_STATE_TEAM_ONE=-1;
 					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#FIRST_TEAM_COLOR_TAG);
 				}
-				if(i == 1 && BED_STATE_TEAM_TWO !=-1 )
+				if(i == 1 && BED_STATE_TEAM_TWO !=-1 || BED_STATE_TEAM_TWO !=-2 )
 				{
 					BED_STATE_TEAM_THREE=-1;
 					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#SECOND_TEAM_COLOR_TAG);
@@ -3738,7 +3749,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 				
 				#if defined TEAMSIZE
 				#if TEAMSIZE >=3
-				if(i == 2 && BED_STATE_TEAM_THREE !=-1 )
+				if(i == 2 && BED_STATE_TEAM_THREE !=-1 || BED_STATE_TEAM_THREE !=-2 )
 				{
 					BED_STATE_TEAM_TWO=-1;
 					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#THIRD_TEAM_COLOR_TAG);
@@ -3747,7 +3758,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 				#endif
 				#if defined TEAMSIZE
 				#if TEAMSIZE >=4
-				if(i == 3 && BED_STATE_TEAM_FOUR !=-1 )
+				if(i == 3 && BED_STATE_TEAM_FOUR !=-1 || BED_STATE_TEAM_FOUR !=-2 )
 				{
 					BED_STATE_TEAM_FOUR=-1;
 					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#FOURTH_TEAM_COLOR_TAG);
@@ -3756,7 +3767,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 				#endif
 				#if defined TEAMSIZE
 				#if TEAMSIZE >=5
-				if(i == 4 && BED_STATE_TEAM_FIVE !=-1 )
+				if(i == 4 && BED_STATE_TEAM_FIVE !=-1 || BED_STATE_TEAM_FIVE !=-2 )
 				{
 					BED_STATE_TEAM_FIVE=-1;
 					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#FIFTH_TEAM_COLOR_TAG);
@@ -3765,7 +3776,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 				#endif
 				#if defined TEAMSIZE
 				#if TEAMSIZE >=6
-				if(i == 5 && BED_STATE_TEAM_SIX !=-1 )
+				if(i == 5 && BED_STATE_TEAM_SIX !=-1 || BED_STATE_TEAM_SIX !=-2 )
 				{
 					BED_STATE_TEAM_SIX=-1;
 					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#SIXTH_TEAM_COLOR_TAG);
@@ -3982,9 +3993,9 @@ public OnPlayerDeath(playerid, killerid, reason)
 	}
 	#endif
 	#endif
-	if(GetActiveTeamCount() >= 2)
+	if(GetActiveTeamCount() > 1)
 	{
-		TeamRemaining();
+		SetTimer("TeamRemaining",1000,false);
 	}
 	if(IsBeingSpeced[playerid] == 1)
 	{
