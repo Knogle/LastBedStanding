@@ -1746,6 +1746,8 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 				
 				format(String, sizeof(String), "{FFFFFF}Welcome %s.\n\n{0099FF}This account is not registered.\n\
 				{0099FF}Type in your password below to register a new account.\n\n", playerdataInfo[playerid][pName]);
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: We found out, you are playing for the first time on this server.");
+				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Please consider using the /help command to know how the game works.");
 				ShowPlayerDialog(playerid, DIALOG_REGISTER, DIALOG_STYLE_PASSWORD, "Registration System", String, "Register", "Leave");
 			}
 			else
@@ -2948,9 +2950,11 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	}
 	if(strcmp(cmd, "/help", true) == 0) 
 	{
-				SendClientMessage(playerid,COLOR_WHITE,"SERVER: How to play"); 
+				SendClientMessage(playerid,COLOR_WHITE,"How to play"); 
 				SendClientMessage(playerid,COLOR_WHITE,"The goal of this mode, is to destroy the enemie's bed and wipe out all the remaining players to determine the winner team."); 
 				SendClientMessage(playerid,COLOR_WHITE,"You can use the /blowup command to destroy and enemies bed!");
+				SendClientMessage(playerid,COLOR_WHITE,"If the game has not started, you can use F4 + /kill to switch to another team. Otherwise /kill is disabled.");
+				SendClientMessage(playerid,COLOR_WHITE,"Use /report to report any players or bugs. You can also report bugs by emailing to webmaster@knogleinsi.de.");
 				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: How to destroy a bed?");
 				SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: Get close to the enemie's bed and use /blowup to destroy it!");
 				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: What can i do if i am unable to respawn due to a destroyed bed?");
@@ -3620,6 +3624,17 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		GetPlayerName(playerid, Name1, sizeof(Name1));
 		format(str, sizeof(str), "[%s{FFFFFF}]%s(%d): %s",GetPlayerTeamColorTag(playerid), Name1, playerid, str2);
 		SendTeamMessage(gPlayerTeamSelection[playerid],COLOR_WHITE,str);
+		return 1;
+	}
+	if(strcmp(cmd, "/report", true) == 0)
+	{
+		new str[256], str2[256], Name1[MAX_PLAYER_NAME];
+		if(sscanf(cmdtext[strlen("/report")+1], "s", str2))
+		return SendClientMessage(playerid, COLOR_WHITE, "USAGE: /report <message>");
+		GetPlayerName(playerid, Name1, sizeof(Name1));
+		format(str, sizeof(str), "%s(%d) reported: %s", Name1, playerid, str2);
+		SendTeamMessage(gPlayerTeamSelection[playerid],COLOR_WHITE,str);
+		printf(str);
 		return 1;
 	}
 	if(strcmp(cmdtext, "/blowup", true) == 0 && GameHasStarted == 1)
