@@ -166,6 +166,8 @@ forward CountDown();
 forward StartGame();
 forward TeamRemaining();
 forward FinishedGame();
+forward LockAllVehicles();
+forward UnlockAllVehicles();
 
 
 //----------------------------------------------------------
@@ -547,7 +549,7 @@ public OnGameModeInit()
 	{
 		InfoPickups[f]=-1;
 	}
-	
+	LockAllVehicles();
 	SendRconCommand("mapname "#MAPTYPE);
 	SetTimer("@AFK_CHECK",9973,1);
 	SetTimer("RespawnAllVehicles",UnusedVehTimer, 1);
@@ -788,8 +790,22 @@ public RandomWeather()
 	SendClientMessageToAll(COLOR_WHITE,strout);
 	print(strout);
 }
-
-
+LockAllVehicles()
+{
+	for(new i;i<MAX_VEHICLES;i++)
+	{
+		SetVehicleParamsEx(i,0, 0, 0, 1, 0, 0, 0);
+	}
+	return 1;
+}
+UnlockAllVehicles()
+{
+	for(new i;i<MAX_VEHICLES;i++)
+	{
+		SetVehicleParamsEx(i,0, 0, 0, 0, 0, 0, 0);
+	}
+	return 1;
+}
 public TeleportPlayerToBase(playerid)
 {
 	#if defined TEAMSIZE
@@ -1214,6 +1230,7 @@ public StartGame()
 			CountDownVar = 59; 
 			GameHasStarted =1;
 			GameTextForAll("~g~ Start!",1000,6);
+			UnlockAllVehicles();
 			
 			for(new i = 0; i < MAX_PLAYERS; i++)
 			{
