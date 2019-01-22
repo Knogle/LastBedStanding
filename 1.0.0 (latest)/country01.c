@@ -53,6 +53,7 @@ enum
 	COUNTRYSIDE_2
 };
 
+#define MAPTYPE COUNTRYSIDE_1
 
 enum pInfo
 {
@@ -91,7 +92,6 @@ enum weather_info
 	wt_text[255]
 };
 
-#define MAPTYPE COUNTRYSIDE_1
 
 
 #define PRESSED(%0) \
@@ -156,7 +156,7 @@ forward GenerateRandomPickup(modelid,type,Float:x_max,Float:x_min,Float:y_max,Fl
 forward LoadUser_data(playerid,name[],value[]);
 forward MONEY_MAIN();
 forward TEAM_MONEY();
-forward BlowUpThisBed();
+forward BlowUpThisBed(teamid);
 forward SendTeamMessage(teamid, color, const message[]);
 forward SellPlayerFightingStyle(playerid,cost,style);
 forward SellPlayerWeapon(playerid,cost,weaponid,ammo);
@@ -185,6 +185,7 @@ new Float:pZ[MAX_PLAYERS];
 new Float:wX[MAX_PLAYERS];
 new Float:wY[MAX_PLAYERS];
 new Float:wZ[MAX_PLAYERS];
+
 new SpectatingPlayer[MAX_PLAYERS];
 new PBombID[MAX_PLAYERS];
 new Beam[MAX_PLAYERS];
@@ -201,6 +202,7 @@ new bombtimer=5000;// time in ms to blow up closest bed
 new MoneyDropTimer=2500;// Time to generate new moneypickups
 new Shop_Counter;
 new CountDownVar;
+new AFK_SYS[MAX_PLAYERS];
 
 
 //--------------------------------------------------------------
@@ -305,7 +307,9 @@ new ActorPickups[sizeof(GlobalActors)];
 new InfoPickups[sizeof(PlayerInfoPickups)];
 new MoneyPickups[MAX_PICKUPS-sizeof(ActorPickups)-sizeof(InfoPickups)-1];
 //
-
+new BedArray[TEAMSIZE];
+new BedStates[TEAMSIZE];
+new TEAM_ZONE[TEAMSIZE];
 
 
 
@@ -399,54 +403,9 @@ stock SendClientMessageEx(playerid, color, fstring[], {Float, _}:...)
 	}
 }
 
-new TEAM_ZONE_ONE;
-new TEAM_ZONE_TWO;
-
-#if defined TEAMSIZE
-#if TEAMSIZE >=3
-new TEAM_ZONE_THREE;
-#endif
-#endif
-#if defined TEAMSIZE
-#if TEAMSIZE >=4
-new TEAM_ZONE_FOUR;
-#endif
-#endif
-#if defined TEAMSIZE
-#if TEAMSIZE >=5
-new TEAM_ZONE_FIVE;
-#endif
-#endif
-#if defined TEAMSIZE
-#if TEAMSIZE == 6
-new TEAM_ZONE_SIX;
-#endif
-#endif
 
 
-new BED_STATE_TEAM_ONE;
-new BED_STATE_TEAM_TWO;
 
-#if defined TEAMSIZE
-#if TEAMSIZE >=3
-new BED_STATE_TEAM_THREE;
-#endif
-#endif
-#if defined TEAMSIZE
-#if TEAMSIZE >=4
-new BED_STATE_TEAM_FOUR;
-#endif
-#endif
-#if defined TEAMSIZE
-#if TEAMSIZE >=5
-new BED_STATE_TEAM_FIVE;
-#endif
-#endif
-#if defined TEAMSIZE
-#if TEAMSIZE ==6
-new BED_STATE_TEAM_SIX;
-#endif
-#endif
 
 
 public OnPlayerDataSave(playerid)
@@ -496,9 +455,35 @@ public OnGameModeExit()
 	mysql_close(Database); // Closing the database.
 	return 1;
 }
+@AFK_CHECK();@AFK_CHECK() {
+	/*for(new i=GetPlayerPoolSize(); i!=-1; i--)
+	{
+		if(!IsPlayerConnected(i) || IsPlayerNPC(i) || !AFK_SYS[i] || (gettime()-AFK_SYS[i]) < 120) continue;
+		Kick(i); //i = playerid die 2min (120 Sekunden) AFK war
+		new name[MAX_PLAYER_NAME + 1];
+		GetPlayerName(i, name, sizeof(name));
+		for(new k=MAX_PLAYERS;k-->0;)
+		{
+			SendClientMessageEx(k,COLOR_WHITE,"SERVER: %s (%d) has been kicked due to inactivity",name,i);	
+		}
+		
+		AFK_SYS[i] = 0;
+	}*/
+	return 1;
+}
 public OnGameModeInit()
 {
-	CreateObject(1829,243.1000100,1804.9000000,6.9000000,0.0000000,0.0000000,0.0000000); //object(man_safenew) (1) //Generic skin selection
+	for(new r;r<TEAMSIZE;r++)//Beginning with Team 0 (FIRST_TEAM) increasing.
+	{
+		BedArray[r]=CreateObject(1801,beds[r][0],beds[r][1],beds[r][2],0.0000000,0.0000000,0.0000000); //object(swank_bed_4) (1)
+	}
+	
+	
+	
+	for(new i;i<sizeof(BedStates);i++)
+	{
+		BedStates[i]=1;
+	}
 	mysql_log(ALL);
 	new MySQLOpt: option_id = mysql_init_options();
 	mysql_set_option(option_id, AUTO_RECONNECT, true); // We will set that option to automatically reconnect on timeouts.
@@ -564,36 +549,15 @@ public OnGameModeInit()
 	}
 	
 	SendRconCommand("mapname "#MAPTYPE);
-
+	SetTimer("@AFK_CHECK",9973,1);
 	SetTimer("RespawnAllVehicles",UnusedVehTimer, 1);
 	SetTimer("RandomWeather", 300000, 1);
 	
-	#if defined TEAMSIZE
-	#if TEAMSIZE >=2
-	TEAM_ZONE_ONE =   GangZoneCreate(GlobalZones[0][0],GlobalZones[0][1],GlobalZones[0][2],GlobalZones[0][3]);
-	TEAM_ZONE_TWO = GangZoneCreate(GlobalZones[1][0],GlobalZones[1][1],GlobalZones[1][2],GlobalZones[1][3]);
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE >=3
-	TEAM_ZONE_THREE = GangZoneCreate(GlobalZones[2][0],GlobalZones[2][1],GlobalZones[2][2],GlobalZones[2][3]);
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE >=4
-	TEAM_ZONE_FOUR =   GangZoneCreate(GlobalZones[3][0],GlobalZones[3][1],GlobalZones[3][2],GlobalZones[3][3]);
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE >=5
-	TEAM_ZONE_FIVE = GangZoneCreate(GlobalZones[4][0],GlobalZones[4][1],GlobalZones[4][2],GlobalZones[4][3]);
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE >=6
-	TEAM_ZONE_SIX = GangZoneCreate(GlobalZones[5][0],GlobalZones[5][1],GlobalZones[5][2],GlobalZones[5][3]);
-	#endif
-	#endif
+
+	for(new zone;zone<TEAMSIZE;zone++)
+	{
+		TEAM_ZONE[zone]=GangZoneCreate(GlobalZones[zone][0],GlobalZones[zone][1],GlobalZones[zone][2],GlobalZones[zone][3]);//Create Gangzones
+	}
 	
 	for(new g=0;g<sizeof(GlobalActors);g++)
 	{
@@ -819,19 +783,18 @@ public RandomWeather()
 {
 	new rand = random(sizeof(gRandomWeatherIDs));
 	new strout[256];
-	format(strout, sizeof(strout), "Weather changed to %s", gRandomWeatherIDs[rand][wt_text]);
+	format(strout, sizeof(strout), "SERVER: Weather changed to %s", gRandomWeatherIDs[rand][wt_text]);
 	SetWeather(gRandomWeatherIDs[rand][wt_id]);
 	SendClientMessageToAll(COLOR_WHITE,strout);
 	print(strout);
 }
 
 
-stock TeleportPlayerToBase(playerid)
+public TeleportPlayerToBase(playerid)
 {
 	#if defined TEAMSIZE
 	#if TEAMSIZE >= 2	
 	new randSpawn=0;
-	RemovePlayerFromVehicle(playerid);
 	if(gPlayerTeamSelection[playerid] == TEAM_SPECTATOR)
 	{
 		return 1;
@@ -1184,7 +1147,7 @@ SetPlayerInvulnerable(playerid,godmode)
 {
 	if(godmode == 1)
 	{
-			SetPlayerHealth(playerid,0x7F800000);
+		SetPlayerHealth(playerid,0x7F800000);
 
 	}
 	else
@@ -1195,8 +1158,9 @@ SetPlayerInvulnerable(playerid,godmode)
 }
 
 
-TeamRemaining()
+public TeamRemaining()
 {
+	printf("TeamRemaining called");
 	if(!GameHasStarted) return 0;
 	new remainingTeamID;
 	if(GetActiveTeamCount() < 2)
@@ -1240,7 +1204,7 @@ public StartGame()
 {
 	
 	
-	if(GetActiveTeamCount() > 1)
+	if(GetActiveTeamCount() > 1)//Amount of teams we need to start the game. Only a value greater than 1 makes sense for a deathmatch like mode.
 	{
 		CountDownVar--; 
 		new str[128];
@@ -1258,7 +1222,7 @@ public StartGame()
 					SendClientMessageEx(i,COLOR_WHITE,"SERVER: The game will now start! Get ready! We have %d active teams!",GetActiveTeamCount());
 					SpawnPlayer(i);
 					TogglePlayerControllable(i,1);
-					TeleportPlayerToBase(i);
+					SetTimerEx("TeleportPlayerToBase",100,false,"i",i);
 					ResetPlayerData(i);
 					SetPlayerInvulnerable(i,0);
 					
@@ -1281,7 +1245,7 @@ public StartGame()
 			
 			for(new i = 0; i < MAX_PLAYERS; i++)
 			{
-				SendClientMessageEx(i,COLOR_WHITE,"SERVER: The game will start in 30 seconds, prepare to start. There are %d Players in %d teams.",currentplayers,GetActiveTeamCount());
+				SendClientMessageEx(i,COLOR_WHITE,"SERVER: The game will start in 30 seconds. Check /help, or use /report if you need further information. ",currentplayers,GetActiveTeamCount());
 			}
 			
 		}
@@ -1469,32 +1433,34 @@ stock DropPlayerWeaponPickup(weaponid,ammo,Float:x,Float:y,Float:z)
 
 public OnPlayerPickUpPickup(playerid, pickupid)
 {
-	if(GameHasStarted == 1)
+	
+	
+	new index;
+	switch(GetPickupType(pickupid,index))
 	{
-		new index;
-		switch(GetPickupType(pickupid,index))
+	case INVALID_PICKUP_TYPE:
 		{
-		case INVALID_PICKUP_TYPE:
-			{
-			}
-		case MONEY_TYPE:
-			{
-				maxmoney -= 1;
-				GivePlayerMoney(playerid, MoneyVal);
-				MoneyPickups[index]=-1;
-				quickSort(MoneyPickups,0,sizeof(MoneyPickups)-1);
-				DestroyPickup(pickupid);
-			}
-		case ACTOR_TYPE:
+		}
+	case MONEY_TYPE:
+		{
+			maxmoney -= 1;
+			if(GameHasStarted == 1) GivePlayerMoney(playerid, MoneyVal);
+			MoneyPickups[index]=-1;
+			quickSort(MoneyPickups,0,sizeof(MoneyPickups)-1);
+			DestroyPickup(pickupid);
+		}
+	case ACTOR_TYPE:
+		{
+			if(GameHasStarted == 1)
 			{
 				ShowMenuForPlayer(shopmenu,playerid);
 				TogglePlayerControllable(playerid,false);
 			}
-		case INFO_TYPE:
-			{
-				ShowMenuForPlayer(infomenu,playerid);
-				TogglePlayerControllable(playerid,false);
-			}
+		}
+	case INFO_TYPE:
+		{
+			ShowMenuForPlayer(infomenu,playerid);
+			TogglePlayerControllable(playerid,false);
 		}
 	}
 	return 1;
@@ -1521,7 +1487,11 @@ stock GetPickupType(pickupid, &index)
 public UpdateTimeAndWeather()
 {
 	
-	
+	//Check if all players have left the game because no one can join.
+	if(GetPlayerCount() == 0 && GameHasStarted)
+	{
+		SendRconCommand("gmx");
+	}
 
 	gettime(hour, minute);
 	if(GameHasStarted)
@@ -1531,7 +1501,11 @@ public UpdateTimeAndWeather()
 	format(timestr,32,"%02d:%02d",hour,minute);
 	format(timestrex,32,"Time: %02d:%02d",hour,minute);
 	TextDrawSetString(txtTimeDisp,timestr);
-
+	if(!GameHasStarted)
+	{
+		SendClientMessageToAll(COLOR_WHITE,"SERVER: The game has not started yet. We are still waiting for players.");
+		SendClientMessageToAll(COLOR_WHITE,"SERVER: You can get further information using /help, or ask your question using /report.");
+	}
 
 	for(new i;i<MAX_PLAYERS;i++)
 	{
@@ -2801,9 +2775,9 @@ public OnPlayerDisconnect(playerid, reason)
 	{
 		switch(reason)
 		{
-		case 0: format(string, sizeof(string), "%s (%d) has left the server. (Lost Connection). There are only %d players left in Team %d", pname,playerid,GetTeamPlayerCount(gPlayerTeamSelection[playerid]),GetPlayerTeamColorTag(playerid));
-		case 1: format(string, sizeof(string), "%s (%d) has left the server. (Leaving). There are only %d players left in Team %d", pname,playerid,GetTeamPlayerCount(gPlayerTeamSelection[playerid]),GetPlayerTeamColorTag(playerid));
-		case 2: format(string, sizeof(string), "%s (%d) has left the server. (Kicked). There are only %d players left in Team %d", pname,playerid,GetTeamPlayerCount(gPlayerTeamSelection[playerid]),GetPlayerTeamColorTag(playerid));
+		case 0: format(string, sizeof(string), "%s (%d) has left the server. (Lost Connection). There are only %d players left in Team %s", pname,playerid,GetTeamPlayerCount(gPlayerTeamSelection[playerid]),GetPlayerTeamColorTag(playerid));
+		case 1: format(string, sizeof(string), "%s (%d) has left the server. (Leaving). There are only %d players left in Team %s", pname,playerid,GetTeamPlayerCount(gPlayerTeamSelection[playerid]),GetPlayerTeamColorTag(playerid));
+		case 2: format(string, sizeof(string), "%s (%d) has left the server. (Kicked). There are only %d players left in Team %s", pname,playerid,GetTeamPlayerCount(gPlayerTeamSelection[playerid]),GetPlayerTeamColorTag(playerid));
 		}
 	}
 	if(GetActiveTeamCount() < 2 && !GameHasFinished)
@@ -2881,7 +2855,7 @@ public OnPlayerUpdate(playerid)
 {
 	
 	if(IsPlayerNPC(playerid)) return 1;
-	
+	if(!IsSpecing[playerid] && gPlayerHasTeamSelected[playerid] == 1) AFK_SYS[playerid] = gettime();
 	if(IsSpecing[playerid] == 1)
 	{
 		HandlePlayerSpectating(playerid);
@@ -2896,7 +2870,34 @@ public OnPlayerUpdate(playerid)
 	return 1;
 
 }
-
+IsPlayerInRangeOfBed(playerid,Float:range)
+{
+	for(new i;i<TEAMSIZE;i++)
+	{
+		new Float:px, Float:py, Float:pz, Float:ox, Float:oy, Float:oz;
+		GetObjectPos(BedArray[i],ox,oy,oz);
+		GetPlayerPos(playerid,px,py,pz);
+		new Float:dist = floatabs(GetDistance(px,py,pz,ox,oy,oz));
+		if(dist <= range) return i;
+	}
+	return -1;
+}
+/*
+IsPlayerInRangeOfObject(playerid,range,objectid)
+{
+	new Float:px, Float:py, Float:pz, Float:ox, Float:oy, Float:oz;
+	GetPlayerPos(playerid,px,py,pz);
+	GetObjectPos(objectid, ox, oy, oz);
+	new Float:dist = floatabs(GetDistance(px,py,pz,ox,oy,oz));
+	if(dist == range || dist < range) 
+	{		
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}*/
 public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 {
 	new deaths = PlayerInfo[clickedplayerid][pDeaths];
@@ -2929,57 +2930,24 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		if(wres == -1)
 		return SendClientMessage(playerid,COLOR_WHITE,"SERVER: Invalid weather ID, check weather array for valid IDs");
 		new strout[64];
-		format(strout, sizeof(strout), "Weather changed to %s", gRandomWeatherIDs[targetweatherid][wt_text]);
+		format(strout, sizeof(strout), "SERVER: Weather changed to %s", gRandomWeatherIDs[targetweatherid][wt_text]);
 		SetWeather(gRandomWeatherIDs[targetweatherid][wt_id]);
 		SendClientMessageToAll(COLOR_WHITE,strout);
 		print(strout);
 	}
-	if(strcmp(cmd, "/search", true) == 0) 
-	{
-		new targetid;
-		if(sscanf(cmdtext[strlen("/search")+1], "i", targetid))
-		return SendClientMessage(playerid, COLOR_WHITE, "USAGE: /search [key]");
-		new mres = binarysearch(MoneyPickups,targetid,0,sizeof(MoneyPickups)-1);
-		new astring[54];
-		format(astring,sizeof(astring),"Index of key: %d",mres);
-		new ares = binarysearch(ActorPickups,targetid,0,sizeof(ActorPickups)-1);
-		SendClientMessage(playerid,COLOR_WHITE,astring);
-		format(astring,sizeof(astring),"Index of key: %d",ares);
-		SendClientMessage(playerid,COLOR_WHITE,astring);
-
-	}
 	if(strcmp(cmd, "/help", true) == 0) 
 	{
-				SendClientMessage(playerid,COLOR_WHITE,"How to play"); 
-				SendClientMessage(playerid,COLOR_WHITE,"The goal of this mode, is to destroy the enemie's bed and wipe out all the remaining players to determine the winner team."); 
-				SendClientMessage(playerid,COLOR_WHITE,"You can use the /blowup command to destroy and enemies bed!");
-				SendClientMessage(playerid,COLOR_WHITE,"If the game has not started, you can use F4 + /kill to switch to another team. Otherwise /kill is disabled.");
-				SendClientMessage(playerid,COLOR_WHITE,"Use /report to report any players or bugs. You can also report bugs by emailing to webmaster@knogleinsi.de.");
-				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: How to destroy a bed?");
-				SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: Get close to the enemie's bed and use /blowup to destroy it!");
-				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: What can i do if i am unable to respawn due to a destroyed bed?");
-				SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: You can use the command /spec [playerid] to spectate other players!");
-				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: When does the game ends?");
-				SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: After a winning team is determined, means if only one team remains.");
-	}
-	if(strcmp(cmd, "/compare", true) == 0) 
-	{
-		HeapSort(MoneyPickups);
-		HeapSort(ActorPickups);
-		for(new i;i<sizeof(ActorPickups);i++)
-		{
-			new mres = binarysearch(MoneyPickups,ActorPickups[i],0,sizeof(MoneyPickups)-1);
-			if(mres > -1)
-			{
-				SendClientMessage(playerid,COLOR_WHITE,"Match found! MoneyPickups contains values of ActorPickups");
-				new tstring[144];
-				format(tstring,sizeof(tstring),"MoneyPickups Val: %d Index: %d matchs ActorPickups Val: %d Index :%d",MoneyPickups[mres],mres,ActorPickups[i],i);
-				SendClientMessage(playerid,-1,tstring);
-				break;
-				
-			}
-		}
-
+		SendClientMessage(playerid,COLOR_WHITE,"How to play"); 
+		SendClientMessage(playerid,COLOR_WHITE,"The goal of this mode, is to destroy the enemie's bed and wipe out all the remaining players to determine the winner team."); 
+		SendClientMessage(playerid,COLOR_WHITE,"You can use the /blowup command to destroy and enemies bed!");
+		SendClientMessage(playerid,COLOR_WHITE,"If the game has not started, you can use F4 + /kill to switch to another team. Otherwise /kill is disabled.");
+		SendClientMessage(playerid,COLOR_WHITE,"Use /report to report any players or bugs. You can also report bugs by emailing to webmaster@knogleinsi.de.");
+		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: How to destroy a bed?");
+		SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: Get close to the enemie's bed and use /blowup to destroy it!");
+		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: What can i do if i am unable to respawn due to a destroyed bed?");
+		SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: You can use the command /spec [playerid] to spectate other players!");
+		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: When does the game ends?");
+		SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: After a winning team is determined, means if only one team remains.");
 	}
 	if(strcmp(cmd, "/getplayerteam", true) == 0) 
 	{
@@ -3354,12 +3322,6 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			TogglePlayerControllable(targetplayer,true);
 		}	
 	}
-	if(strcmp(cmd, "/getmoneycount", true) == 0)
-	{
-		new moneyvalstring[128];
-		format(moneyvalstring,sizeof(moneyvalstring),"SERVER: $%d have been generated.%d money pickups have been created",moneyval,maxmoney);
-		SendClientMessage(playerid,COLOR_WHITE,moneyvalstring);
-	}
 	if(strcmp(cmd, "/goto", true) == 0)
 	{
 		if(IsPlayerAdmin(playerid))
@@ -3457,17 +3419,6 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			GetPlayerPos(playerid,pX[playerid],pY[playerid],pZ[playerid]);
 			BombObject[playerid] = CreateObject(363,pX[playerid],pY[playerid],(pZ[playerid]-0.4),0,0,0);//Bomb object
 			SendClientMessage(playerid, COLOR_WHITE, "SERVER: Bomb placed! Use ~k~~CONVERSATION_YES~ or /detonate to blow it up!");
-			for(new k;k<sizeof(beds[]);k++)
-			{
-				new Float:dist = floatabs(GetDistance(pX[playerid],pY[playerid],pZ[playerid],beds[k][0],beds[k][1],beds[k][2]));
-				{
-					if(dist < 8)
-					{
-						new distancestring[128];
-						format(distancestring,sizeof(distancestring),"SERVER: Distance of dropped bomb to closest bed: %fm",dist);
-					}				
-				}
-			}
 		}
 		else if(GetPlayerInterior(playerid) != 0)
 		{
@@ -3490,73 +3441,32 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			SendClientMessage(playerid, COLOR_WHITE, "SERVER: Bomb detonated!");
 			PlayerPlaySound(playerid, 21001, 0, 0, 0);
 			DestroyObject(BombObject[playerid]);
-			for(new i = 0; i < sizeof(beds[]); i++)
+			new Float:health;
+			GetPlayerHealth(playerid,health);
+			new bedteamid=IsPlayerInRangeOfBed(playerid,3.0);
+			if(running !=1 && bedteamid != 0 && health > 0 && !IsPlayerInAnyVehicle(playerid)) // In this script we deal with players only
 			{
-				new Float:health;
-				GetPlayerHealth(playerid,health);
-				new Float:dist = GetDistance(beds[i][0],beds[i][1],beds[i][2],pX[playerid],pY[playerid],pZ[playerid]);
-				if(dist < 4)
+				if(bedteamid == gPlayerTeamSelection[playerid])
+				return SendClientMessage(playerid, COLOR_WHITE, "SERVER: You cannot blow up the bed of your own team!");  
+				running = 1;
+				PlayerInfo[playerid][pBeds]=GetPlayerScore(playerid);
+				if(BedStates[bedteamid] != 0)
 				{
-					running = 1;
-					if(!(i == 0 &&  gPlayerTeamSelection[playerid] == FIRST_TEAM) || !(i == 1 &&  gPlayerTeamSelection[playerid] == THIRD_TEAM) || !(i == 2 &&  gPlayerTeamSelection[playerid] == SECOND_TEAM))
-					PlayerInfo[playerid][pBeds]+=1;	
-					
-
-					if(i == 0 && BED_STATE_TEAM_ONE !=-1 || BED_STATE_TEAM_ONE !=-2 )
-					{
-						BED_STATE_TEAM_ONE=-1;
-						SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#FIRST_TEAM_COLOR_TAG);
-					}
-					if(i == 1 && BED_STATE_TEAM_TWO !=-1 || BED_STATE_TEAM_TWO !=-2 )
-					{
-						BED_STATE_TEAM_THREE=-1;
-						SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#SECOND_TEAM_COLOR_TAG);
-					}
-					
-					#if defined TEAMSIZE
-					#if TEAMSIZE >=3
-					if(i == 2 && BED_STATE_TEAM_THREE !=-1 || BED_STATE_TEAM_THREE !=-2 )
-					{
-						BED_STATE_TEAM_TWO=-1;
-						SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#THIRD_TEAM_COLOR_TAG);
-					}
-					#endif
-					#endif
-					#if defined TEAMSIZE
-					#if TEAMSIZE >=4
-					if(i == 3 && BED_STATE_TEAM_FOUR !=-1 || BED_STATE_TEAM_FOUR !=-2 )
-					{
-						BED_STATE_TEAM_FOUR=-1;
-						SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#FOURTH_TEAM_COLOR_TAG);
-					}
-					#endif
-					#endif
-					#if defined TEAMSIZE
-					#if TEAMSIZE >=5
-					if(i == 4 && BED_STATE_TEAM_FIVE !=-1 || BED_STATE_TEAM_FIVE !=-2 )
-					{
-						BED_STATE_TEAM_FIVE=-1;
-						SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#FIFTH_TEAM_COLOR_TAG);
-					}
-					#endif
-					#endif
-					#if defined TEAMSIZE
-					#if TEAMSIZE >=6
-					if(i == 5 && BED_STATE_TEAM_SIX !=-1 || BED_STATE_TEAM_SIX !=-2 )
-					{
-						BED_STATE_TEAM_SIX=-1;
-						SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#SIXTH_TEAM_COLOR_TAG);
-					}
-					#endif
-					#endif
-					SetPlayerScore(playerid, GetPlayerScore(playerid) + 1);
-					x1=pX[playerid];
-					y1=pY[playerid];
-					z1=pZ[playerid];
-					ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, 1, 0, 0, 1, 1);
-					SetTimer("BlowUpThisBed", 130, false);
-					return 1;
+					SendClientMessageEx(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team %s ",GetTeamColorTag(bedteamid));
+					BedStates[bedteamid] = 0;
 				}
+				PlayerInfo[playerid][pBeds]+=1;	
+				SendClientMessage(playerid, COLOR_WHITE, "SERVER: Planted Bomb Successfully. Lets Blow This Bed Up!");
+				SetPlayerScore(playerid, GetPlayerScore(playerid) + 1);
+				SendClientMessage(playerid, COLOR_WHITE, "SERVER: Keep Running! Bed Will Blow Up In 5 seconds!");
+				GetPlayerPos(playerid, x1, y1, z1);
+				ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, 1, 0, 0, 1, 1);
+				for(new k = 0; k < MAX_PLAYERS; k++)
+				{
+					PlayerPlaySound(k,7416,x1,y1,z1);
+				}
+				CountDownTimer = SetTimer("CountDown", 1000, true);
+				return 1;
 
 			}
 		}
@@ -3632,96 +3542,47 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		if(sscanf(cmdtext[strlen("/report")+1], "s", str2))
 		return SendClientMessage(playerid, COLOR_WHITE, "USAGE: /report <message>");
 		GetPlayerName(playerid, Name1, sizeof(Name1));
-		format(str, sizeof(str), "%s(%d) reported: %s", Name1, playerid, str2);
+		format(str, sizeof(str), "{A9C4E4}SERVER: Incoming report from: %s(%d) regarding: %s", Name1, playerid, str2);
 		SendTeamMessage(gPlayerTeamSelection[playerid],COLOR_WHITE,str);
 		printf(str);
 		return 1;
 	}
 	if(strcmp(cmdtext, "/blowup", true) == 0 && GameHasStarted == 1)
 	{
-		for(new i = 0; i < sizeof(beds); i++)
+		
+		new Float:health;
+		GetPlayerHealth(playerid,health);
+		new bedteamid=IsPlayerInRangeOfBed(playerid,3.0);
+		if(running !=1 && bedteamid != -1 && health > 0 && !IsPlayerInAnyVehicle(playerid)) // In this script we deal with players only
 		{
-			new Float:health;
-			GetPlayerHealth(playerid,health);
-			
-			if(running !=1 && IsPlayerInRangeOfPoint(playerid,3.0,beds[i][0],beds[i][1],beds[i][2]) && health > 0 && !IsPlayerInAnyVehicle(playerid)) // In this script we deal with players only
+			if(bedteamid == gPlayerTeamSelection[playerid])
+			return SendClientMessage(playerid, COLOR_WHITE, "SERVER: You cannot blow up the bed of your own team!");  
+			running = 1;
+			PlayerInfo[playerid][pBeds]=GetPlayerScore(playerid);
+			SetTimerEx("BlowUpThisBed", bombtimer, false,"i",bedteamid);
+			if(BedStates[bedteamid] != 0)
 			{
-				if((i == 0 &&  gPlayerTeamSelection[playerid] == FIRST_TEAM) || (i == 1 &&  gPlayerTeamSelection[playerid] == SECOND_TEAM) || (i == 2 &&  gPlayerTeamSelection[playerid] == THIRD_TEAM)  || (i == 3 &&  gPlayerTeamSelection[playerid] == FOURTH_TEAM) || (i == 4 &&  gPlayerTeamSelection[playerid] == FIFTH_TEAM)  || (i == 5 &&  gPlayerTeamSelection[playerid] == SIXTH_TEAM))
-				return SendClientMessage(playerid, COLOR_WHITE, "SERVER: You cannot blow up the bed of your own team!");  
-				running = 1;
-				PlayerInfo[playerid][pBeds]=GetPlayerScore(playerid);
-				SetTimer("BlowUpThisBed", bombtimer, false);
-				if(i == 0 && BED_STATE_TEAM_ONE !=-1 || BED_STATE_TEAM_ONE !=-2 )
-				{
-					BED_STATE_TEAM_ONE=-1;
-					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team "#FIRST_TEAM_COLOR_TAG);
-				}
-				if(i == 1 && BED_STATE_TEAM_TWO !=-1 || BED_STATE_TEAM_TWO !=-2 )
-				{
-					BED_STATE_TEAM_TWO=-1;
-					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team "#SECOND_TEAM_COLOR_TAG);
-				}
-				
-				#if defined TEAMSIZE
-				#if TEAMSIZE >=3
-				if(i == 2 && BED_STATE_TEAM_THREE !=-1 || BED_STATE_TEAM_THREE !=-2 )
-				{
-					BED_STATE_TEAM_THREE=-1;
-					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team "#THIRD_TEAM_COLOR_TAG);
-				}
-				#endif
-				#endif
-				#if defined TEAMSIZE
-				#if TEAMSIZE >=4
-				if(i == 3 && BED_STATE_TEAM_FOUR !=-1 || BED_STATE_TEAM_FOUR !=-2 )
-				{
-					BED_STATE_TEAM_FOUR=-1;
-					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team "#FOURTH_TEAM_COLOR_TAG);
-				}
-				#endif
-				#endif
-				#if defined TEAMSIZE
-				#if TEAMSIZE >=5
-				if(i == 4 && BED_STATE_TEAM_FIVE !=-1 || BED_STATE_TEAM_FIVE !=-2 )
-				{
-					BED_STATE_TEAM_FIVE=-1;
-					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team "#FIFTH_TEAM_COLOR_TAG);
-				}
-				#endif
-				#endif
-				#if defined TEAMSIZE
-				#if TEAMSIZE >=6
-				if(i == 5 && BED_STATE_TEAM_SIX !=-1 || BED_STATE_TEAM_SIX !=-2 )
-				{
-					BED_STATE_TEAM_SIX=-1;
-					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team "#SIXTH_TEAM_COLOR_TAG);
-				}
-				#endif
-				#endif
-				PlayerInfo[playerid][pBeds]+=1;	
-				SendClientMessage(playerid, COLOR_WHITE, "SERVER: Planted Bomb Successfully. Lets Blow This Bed Up!");
-				SetPlayerScore(playerid, GetPlayerScore(playerid) + 1);
-				SendClientMessage(playerid, COLOR_WHITE, "SERVER: Keep Running! Bed Will Blow Up In 5 seconds!");
-				
-				GetPlayerPos(playerid, x1, y1, z1);
-				ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, 1, 0, 0, 1, 1);
-				for(new k = 0; k < MAX_PLAYERS; k++)
-				{
-					PlayerPlaySound(k,7416,x1,y1,z1);
-				}
-				CountDownTimer = SetTimer("CountDown", 1000, true);
-				new Float:dist = GetDistance(beds[i][0],beds[i][1],beds[i][2],x1,y1,z1);
-				printf("Distance to closest bed: %f, Index: %d", dist, i);
-				
-				
-
-				return 1;
-
+				SendClientMessageEx(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team %s ",GetTeamColorTag(bedteamid));
+				BedStates[bedteamid] = 0;
 			}
-
-
+			PlayerInfo[playerid][pBeds]+=1;	
+			SendClientMessage(playerid, COLOR_WHITE, "SERVER: Planted Bomb Successfully. Lets Blow This Bed Up!");
+			SetPlayerScore(playerid, GetPlayerScore(playerid) + 1);
+			SendClientMessage(playerid, COLOR_WHITE, "SERVER: Keep Running! Bed Will Blow Up In 5 seconds!");
+			GetPlayerPos(playerid, x1, y1, z1);
+			ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, 1, 0, 0, 1, 1);
+			for(new k = 0; k < MAX_PLAYERS; k++)
+			{
+				PlayerPlaySound(k,7416,x1,y1,z1);
+			}
+			CountDownTimer = SetTimer("CountDown", 1000, true);
+			return 1;
 
 		}
+
+
+
+		
 		return 0;
 
 	}
@@ -3740,77 +3601,32 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		SendClientMessage(playerid, COLOR_WHITE, "SERVER: Bomb detonated!");
 		PlayerPlaySound(playerid, 21001, 0, 0, 0);
 		DestroyObject(BombObject[playerid]);
-		for(new i = 0; i < sizeof(beds[]); i++)
+		new Float:health;
+		GetPlayerHealth(playerid,health);
+		new bedteamid=IsPlayerInRangeOfBed(playerid,3.0);
+		if(running !=1 && bedteamid != -1 && health > 0 && !IsPlayerInAnyVehicle(playerid)) // In this script we deal with players only
 		{
-			new Float:health;
-			GetPlayerHealth(playerid,health);
-			new Float:dist = GetDistance(beds[i][0],beds[i][1],beds[i][2],pX[playerid],pY[playerid],pZ[playerid]);
-			if(dist < 4)
+			if(bedteamid == gPlayerTeamSelection[playerid])
+			return SendClientMessage(playerid, COLOR_WHITE, "SERVER: You cannot blow up the bed of your own team!");  
+			running = 1;
+			PlayerInfo[playerid][pBeds]=GetPlayerScore(playerid);
+			if(BedStates[bedteamid] != 0)
 			{
-				running = 1;
-				if(!(i == 0 &&  gPlayerTeamSelection[playerid] == FIRST_TEAM) || !(i == 1 &&  gPlayerTeamSelection[playerid] == THIRD_TEAM) || !(i == 2 &&  gPlayerTeamSelection[playerid] == SECOND_TEAM))
-				PlayerInfo[playerid][pBeds]+=1;	
-				
-
-				if(i == 0 && BED_STATE_TEAM_ONE !=-1 || BED_STATE_TEAM_ONE !=-2 )
-				{
-					BED_STATE_TEAM_ONE=-1;
-					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#FIRST_TEAM_COLOR_TAG);
-				}
-				if(i == 1 && BED_STATE_TEAM_TWO !=-1 || BED_STATE_TEAM_TWO !=-2 )
-				{
-					BED_STATE_TEAM_THREE=-1;
-					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#SECOND_TEAM_COLOR_TAG);
-				}
-				
-				#if defined TEAMSIZE
-				#if TEAMSIZE >=3
-				if(i == 2 && BED_STATE_TEAM_THREE !=-1 || BED_STATE_TEAM_THREE !=-2 )
-				{
-					BED_STATE_TEAM_TWO=-1;
-					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#THIRD_TEAM_COLOR_TAG);
-				}
-				#endif
-				#endif
-				#if defined TEAMSIZE
-				#if TEAMSIZE >=4
-				if(i == 3 && BED_STATE_TEAM_FOUR !=-1 || BED_STATE_TEAM_FOUR !=-2 )
-				{
-					BED_STATE_TEAM_FOUR=-1;
-					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#FOURTH_TEAM_COLOR_TAG);
-				}
-				#endif
-				#endif
-				#if defined TEAMSIZE
-				#if TEAMSIZE >=5
-				if(i == 4 && BED_STATE_TEAM_FIVE !=-1 || BED_STATE_TEAM_FIVE !=-2 )
-				{
-					BED_STATE_TEAM_FIVE=-1;
-					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#FIFTH_TEAM_COLOR_TAG);
-				}
-				#endif
-				#endif
-				#if defined TEAMSIZE
-				#if TEAMSIZE >=6
-				if(i == 5 && BED_STATE_TEAM_SIX !=-1 || BED_STATE_TEAM_SIX !=-2 )
-				{
-					BED_STATE_TEAM_SIX=-1;
-					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You blew up the bed of Team "#SIXTH_TEAM_COLOR_TAG);
-				}
-				#endif
-				#endif
-				SetPlayerScore(playerid, GetPlayerScore(playerid) + 1);
-				x1=pX[playerid];
-				y1=pY[playerid];
-				z1=pZ[playerid];
-				ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, 1, 0, 0, 1, 1);
-				SetTimer("BlowUpThisBed", 130, false);
-				
-				
-				
-
-				return 1;
+				SendClientMessageEx(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team %s ",GetTeamColorTag(bedteamid));
+				BedStates[bedteamid] = 0;
 			}
+			PlayerInfo[playerid][pBeds]+=1;	
+			SendClientMessage(playerid, COLOR_WHITE, "SERVER: Planted Bomb Successfully. Lets Blow This Bed Up!");
+			SetPlayerScore(playerid, GetPlayerScore(playerid) + 1);
+			SendClientMessage(playerid, COLOR_WHITE, "SERVER: Keep Running! Bed Will Blow Up In 5 seconds!");
+			GetPlayerPos(playerid, x1, y1, z1);
+			ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, 1, 0, 0, 1, 1);
+			for(new k = 0; k < MAX_PLAYERS; k++)
+			{
+				PlayerPlaySound(k,7416,x1,y1,z1);
+			}
+			CountDownTimer = SetTimer("CountDown", 1000, true);
+			return 1;
 
 		}
 	}
@@ -3824,9 +3640,8 @@ public OnPlayerDeath(playerid, killerid, reason)
 	
 	new pname[MAX_PLAYER_NAME];
 	GetPlayerName(playerid, pname, sizeof(pname));
-	new matediedstringgrey[128];
-	new matediedstringred[128];
-	new matediedstringblue[128];
+	new matediedstring[128];
+
 	
 	HideMenuForPlayer(ammunation,playerid);
 	HideMenuForPlayer(pistols,playerid);
@@ -3851,52 +3666,11 @@ public OnPlayerDeath(playerid, killerid, reason)
 		CreateExplosion(x,y,z,9,10);
 	}
 
-	if(BED_STATE_TEAM_ONE != 0 && gPlayerTeamSelection[playerid] == FIRST_TEAM)
+	if(BedStates[gPlayerTeamSelection[playerid]] == 0)
 	{
-		format(matediedstringgrey,sizeof(matediedstringgrey),"SERVER: %s (%d) has been killed, watch out! %d players left in Team "#FIRST_TEAM_COLOR_TAG,pname,playerid,GetTeamPlayerCount(FIRST_TEAM)-1);
-		SendClientMessageToAll(COLOR_WHITE,matediedstringgrey);
+		format(matediedstring,sizeof(matediedstring),"SERVER: %s (%d) has been killed, watch out! %d players left in Team %s",pname,playerid,GetTeamPlayerCount(gPlayerTeamSelection[playerid])-1,GetPlayerTeamColorTag(playerid));
+		SendClientMessageToAll(COLOR_WHITE,matediedstring);
 	}
-	if(BED_STATE_TEAM_TWO != 0 && gPlayerTeamSelection[playerid] == SECOND_TEAM)
-	{
-		format(matediedstringred,sizeof(matediedstringred),"SERVER: %s (%d) has been killed, watch out! %d players left in Team "#SECOND_TEAM_COLOR_TAG,pname,playerid,GetTeamPlayerCount(SECOND_TEAM)-1);
-		SendClientMessageToAll(COLOR_WHITE,matediedstringred);
-	}
-	#if defined TEAMSIZE
-	#if TEAMSIZE >=3
-	if(BED_STATE_TEAM_THREE != 0 && gPlayerTeamSelection[playerid] == THIRD_TEAM)
-	{
-		format(matediedstringblue,sizeof(matediedstringblue),"SERVER: %s (%d) has been killed, watch out! %d players left in Team "#THIRD_TEAM_COLOR_TAG,pname,playerid,GetTeamPlayerCount(THIRD_TEAM)-1);
-		SendClientMessageToAll(COLOR_WHITE,matediedstringblue);
-	}
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE >=4
-	if(BED_STATE_TEAM_FOUR != 0 && gPlayerTeamSelection[playerid] == FOURTH_TEAM)
-	{
-		format(matediedstringgrey,sizeof(matediedstringgrey),"SERVER: %s (%d) has been killed, watch out! %d players left in Team "#FOURTH_TEAM_COLOR_TAG,pname,playerid,GetTeamPlayerCount(FOURTH_TEAM)-1);
-		SendClientMessageToAll(COLOR_WHITE,matediedstringgrey);
-	}
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE >=5
-	if(BED_STATE_TEAM_FIVE != 0 && gPlayerTeamSelection[playerid] == FIFTH_TEAM)
-	{
-		format(matediedstringred,sizeof(matediedstringred),"SERVER: %s (%d) has been killed, watch out! %d players left in Team "#FIFTH_TEAM_COLOR_TAG,pname,playerid,GetTeamPlayerCount(FIFTH_TEAM)-1);
-		SendClientMessageToAll(COLOR_WHITE,matediedstringred);
-	}
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE ==6
-	if(BED_STATE_TEAM_SIX != 0 && gPlayerTeamSelection[playerid] == SIXTH_TEAM)
-	{
-		format(matediedstringblue,sizeof(matediedstringblue),"SERVER: %s (%d) has been killed, watch out! %d players left in Team "#SIXTH_TEAM_COLOR_TAG,pname,playerid,GetTeamPlayerCount(SIXTH_TEAM)-1);
-		SendClientMessageToAll(COLOR_WHITE,matediedstringblue);
-	}
-	#endif
-	#endif
 	new playercash;
 	playercash = GetPlayerMoney(playerid);
 	SendDeathMessage(killerid, playerid, reason); // Shows the kill in the killfeed
@@ -3933,9 +3707,9 @@ public OnPlayerDeath(playerid, killerid, reason)
 	#endif
 	
 
-	if(BED_STATE_TEAM_ONE!=0 && FIRST_TEAM == gPlayerTeamSelection[playerid])
+	if(BedStates[gPlayerTeamSelection[playerid]] == 0)
 	{
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",FIRST_TEAM_COLOR_TAG);
+		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",GetTeamColorTag(playerid));
 		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
 		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
 		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
@@ -3943,75 +3717,10 @@ public OnPlayerDeath(playerid, killerid, reason)
 		SetPlayerColor(playerid,COLOR_WHITE);
 		SpecRandomPlayer(playerid);
 	}
-	if(BED_STATE_TEAM_TWO!=0 && SECOND_TEAM == gPlayerTeamSelection[playerid])
-	{
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",SECOND_TEAM_COLOR_TAG);
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
-		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
-		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
-		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
-		SetPlayerColor(playerid,COLOR_WHITE);
-		SpecRandomPlayer(playerid);
-	}
-	#if defined TEAMSIZE
-	#if TEAMSIZE >= 3
-	if(BED_STATE_TEAM_THREE!=0 && THIRD_TEAM == gPlayerTeamSelection[playerid])
-	{
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",THIRD_TEAM_COLOR_TAG);
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
-		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
-		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
-		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
-		SetPlayerColor(playerid,COLOR_WHITE);
-		SpecRandomPlayer(playerid);
-	}
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE >= 4
-	if(BED_STATE_TEAM_FOUR!=0 && FOURTH_TEAM == gPlayerTeamSelection[playerid])
-	{
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",FOURTH_TEAM_COLOR_TAG);
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
-		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
-		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
-		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
-		SetPlayerColor(playerid,COLOR_WHITE);
-		SpecRandomPlayer(playerid);
-	}
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE >= 5
-	if(BED_STATE_TEAM_FIVE!=0 && FIFTH_TEAM == gPlayerTeamSelection[playerid])
-	{
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",FIFTH_TEAM_COLOR_TAG);
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
-		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
-		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
-		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
-		SetPlayerColor(playerid,COLOR_WHITE);
-		SpecRandomPlayer(playerid);
-	}
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE == 6
-	if(BED_STATE_TEAM_SIX!=0 && SIXTH_TEAM == gPlayerTeamSelection[playerid])
-	{
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",SIXTH_TEAM_COLOR_TAG);
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
-		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
-		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
-		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
-		SetPlayerColor(playerid,COLOR_WHITE);
-		SpecRandomPlayer(playerid);
-	}
-	#endif
-	#endif
-	if(GetActiveTeamCount() > 1)
+	if(GetActiveTeamCount() < 2 && GameHasStarted)
 	{
 		SetTimer("TeamRemaining",1000,false);
+		printf("Timer set");
 	}
 	if(IsBeingSpeced[playerid] == 1)
 	{
@@ -4023,6 +3732,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 			}
 		}
 	}
+
 	return 1;
 }
 
@@ -4190,85 +3900,23 @@ ClassSel_SetupSelectedTeam(playerid)
 }
 
 //----------------------------------------------------------
-public BlowUpThisBed()
+public BlowUpThisBed(teamid)
 {
+	GetObjectPos(BedArray[teamid],x1,y1,z1);
 	CreateExplosion(x1, y1, z1, 7, 10.0);//'heavy' explosion close to bed
 	CreateExplosion(x1, y1, z1, 9, 10.0);
 	running=0;
 	printf("Blow Up This Bed called");
-	if(BED_STATE_TEAM_ONE == -1)
+	if(BedStates[teamid] == 0)
 	{
-		BED_STATE_TEAM_ONE = -2;
-		SendTeamMessage(FIRST_TEAM,COLOR_WHITE,"SERVER: Sudden death! Keep running, your bed has been blown up! There is no respawn after death!");
+		SendTeamMessage(teamid,COLOR_WHITE,"SERVER: Sudden death! Keep running, your bed has been blown up! There is no respawn after death!");
 		new adstring[64];
-		format(adstring,sizeof(adstring),"SERVER: The bed of team %s {FFFFFF}blew up!",FIRST_TEAM_COLOR_TAG);
+		format(adstring,sizeof(adstring),"SERVER: The bed of team %s {FFFFFF}blew up!",GetTeamColorTag(teamid));
 		SendClientMessageToAll(-1,adstring);
-		GangZoneHideForAll(TEAM_ZONE_ONE);
-		printf("Violet");
+		GangZoneHideForAll(TEAM_ZONE[teamid]);
+		DestroyObject(BedArray[teamid]);//Destroy/Remove the bed of this team after blowing up
 
 	}
-	if(BED_STATE_TEAM_TWO == -1)
-	{
-		BED_STATE_TEAM_TWO = -2;
-		SendTeamMessage(SECOND_TEAM,COLOR_WHITE,"SERVER: Sudden death! Keep running, your bed has been blown up! There is no respawn after death!");
-		new adstring[64];
-		format(adstring,sizeof(adstring),"SERVER: The bed of team %s {FFFFFF}blew up!",SECOND_TEAM_COLOR_TAG);
-		SendClientMessageToAll(-1,adstring);
-		GangZoneHideForAll(TEAM_ZONE_TWO);
-	}
-	#if defined TEAMSIZE
-	#if TEAMSIZE >= 3
-	if(BED_STATE_TEAM_THREE == -1)
-	{
-		BED_STATE_TEAM_THREE = -2;
-		SendTeamMessage(THIRD_TEAM,COLOR_WHITE,"SERVER: Sudden death! Keep running, your bed has been blown up! There is no respawn after death!");
-		new adstring[64];
-		format(adstring,sizeof(adstring),"SERVER: The bed of team %s {FFFFFF}blew up!",THIRD_TEAM_COLOR_TAG);
-		SendClientMessageToAll(-1,adstring);
-		GangZoneHideForAll(TEAM_ZONE_THREE);
-	}
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE >= 4
-	if(BED_STATE_TEAM_FOUR	== -1)
-	{
-		BED_STATE_TEAM_FOUR = -2;
-		SendTeamMessage(FOURTH_TEAM,COLOR_WHITE,"SERVER: Sudden death! Keep running, your bed has been blown up! There is no respawn after death!");
-		new adstring[64];
-		format(adstring,sizeof(adstring),"SERVER: The bed of team %s {FFFFFF}blew up!",FOURTH_TEAM_COLOR_TAG);
-		SendClientMessageToAll(-1,adstring);
-		GangZoneHideForAll(TEAM_ZONE_FOUR);
-
-	}
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE >= 5
-	if(BED_STATE_TEAM_FIVE == -1)
-	{
-		BED_STATE_TEAM_FIVE = -2;
-		SendTeamMessage(FIFTH_TEAM,COLOR_WHITE,"SERVER: Sudden death! Keep running, your bed has been blown up! There is no respawn after death!");
-		new adstring[64];
-		format(adstring,sizeof(adstring),"SERVER: The bed of team %s {FFFFFF}blew up!",FIFTH_TEAM_COLOR_TAG);
-		SendClientMessageToAll(-1,adstring);
-		GangZoneHideForAll(TEAM_ZONE_FIVE);
-	}
-	#endif
-	#endif
-	#if defined TEAMSIZE
-	#if TEAMSIZE == 6
-	if(BED_STATE_TEAM_SIX == -1)
-	{
-		BED_STATE_TEAM_SIX = -2;
-		SendTeamMessage(SIXTH_TEAM,COLOR_WHITE,"SERVER: Sudden death! Keep running, your bed has been blown up! There is no respawn after death!");
-		new adstring[64];
-		format(adstring,sizeof(adstring),"SERVER: The bed of team %s {FFFFFF}blew up!",SIXTH_TEAM_COLOR_TAG);
-		SendClientMessageToAll(-1,adstring);
-		GangZoneHideForAll(TEAM_ZONE_SIX);
-	}
-	#endif
-	#endif
 }
 stock GetVehicleDriver(vid)
 {
@@ -4447,26 +4095,26 @@ public OnPlayerSpawn(playerid)
 	}
 	
 	
-	GangZoneShowForPlayer(playerid, TEAM_ZONE_ONE, COLOR_TEAM_ONE);
-	GangZoneShowForPlayer(playerid, TEAM_ZONE_TWO, COLOR_TEAM_TWO);
+	GangZoneShowForPlayer(playerid, TEAM_ZONE[FIRST_TEAM], COLOR_TEAM_ONE);
+	GangZoneShowForPlayer(playerid, TEAM_ZONE[SECOND_TEAM], COLOR_TEAM_TWO);
 	#if defined TEAMSIZE
 	#if TEAMSIZE >= 3
-	GangZoneShowForPlayer(playerid, TEAM_ZONE_THREE, COLOR_TEAM_THREE);
+	GangZoneShowForPlayer(playerid, TEAM_ZONE[THIRD_TEAM], COLOR_TEAM_THREE);
 	#endif
 	#endif
 	#if defined TEAMSIZE
 	#if TEAMSIZE >= 4
-	GangZoneShowForPlayer(playerid, TEAM_ZONE_FOUR, COLOR_TEAM_FOUR);
+	GangZoneShowForPlayer(playerid, TEAM_ZONE[FOURTH_TEAM], COLOR_TEAM_FOUR);
 	#endif
 	#endif
 	#if defined TEAMSIZE
 	#if TEAMSIZE >= 5
-	GangZoneShowForPlayer(playerid, TEAM_ZONE_FIVE, COLOR_TEAM_FIVE);
+	GangZoneShowForPlayer(playerid, TEAM_ZONE[FIFTH_TEAM], COLOR_TEAM_FIVE);
 	#endif
 	#endif
 	#if defined TEAMSIZE
 	#if TEAMSIZE == 6
-	GangZoneShowForPlayer(playerid, TEAM_ZONE_SIX, COLOR_TEAM_SIX);
+	GangZoneShowForPlayer(playerid, TEAM_ZONE[SIXTH_TEAM], COLOR_TEAM_SIX);
 	#endif
 	#endif
 	
