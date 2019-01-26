@@ -105,11 +105,7 @@ enum weather_info
 #define SIXTH_TEAM 5 
 #define TEAM_SPECTATOR 6 	
 
-#define ADMIN_SPEC_TYPE_NONE 0
-#define ADMIN_SPEC_TYPE_PLAYER 1
-#define ADMIN_SPEC_TYPE_VEHICLE 2
 #define COLOR_WHITE 		0xFFFFFFFF
-#define COLOR_NORMAL_PLAYER 0xFFBB7777
 #define COLOR_GREY 0xAFAFAFAA
 #define COLOR_RED 0xAA3333AA
 #define COLOR_GREEN 0x33AA33AA
@@ -577,6 +573,9 @@ public OnGameModeInit()
 	infomenu = CreateMenu("Information", 1,20,200,200);
 	if(IsValidMenu(infomenu)){
 		AddMenuItem(infomenu, 0, "How to play");
+		AddMenuItem(infomenu, 0, "Player commands");
+		AddMenuItem(infomenu, 0, "Team commands");
+		AddMenuItem(infomenu, 0, "Misc commands");
 		AddMenuItem(infomenu, 0, "FAQ");
 		AddMenuItem(infomenu, 0, "Rules");
 	}
@@ -2168,14 +2167,37 @@ public OnPlayerSelectedMenuRow(playerid, row)
 		TogglePlayerControllable(playerid,false);
 		switch(row) 
 		{
-		case 0:
+		case 0://Simple guide how the game works.
 			{
 				TogglePlayerControllable(playerid,true);
-				SendClientMessage(playerid,COLOR_WHITE,"SERVER: How to play"); 
+				SendClientMessage(playerid,COLOR_WHITE,"How to play"); 
 				SendClientMessage(playerid,COLOR_WHITE,"The goal of this mode, is to destroy the enemie's bed and wipe out all the remaining players to determine the winner team."); 
 				SendClientMessage(playerid,COLOR_WHITE,"You can use the /blowup command to destroy and enemies bed!");
+				SendClientMessage(playerid,COLOR_WHITE,"If the game has not started, you can use F4 + /kill to switch to another team. Otherwise /kill is disabled.");
+				SendClientMessage(playerid,COLOR_WHITE,"Use /report to report any players or bugs. You can also report bugs by emailing to webmaster@knogleinsi.de.");
+				
 			}
-		case 1:
+		case 1://Player commands
+			{
+				TogglePlayerControllable(playerid,true);
+				SendClientMessage(playerid,COLOR_WHITE,"Current list of player commands");
+				SendClientMessage(playerid,COLOR_WHITE,"/pm [id] [message]; /stats [id] ; /net(work)stats [id] ; /getplayerteam [id]");
+				
+			}
+		case 2://Team commands
+			{
+				TogglePlayerControllable(playerid,true);
+				SendClientMessage(playerid,COLOR_WHITE,"Current list of team commands");
+				SendClientMessage(playerid,COLOR_WHITE,"/r(adio) [message];");
+			}
+		case 3://Misc commands
+			{
+				TogglePlayerControllable(playerid,true);
+				SendClientMessage(playerid,COLOR_WHITE,"Current list of miscellaneous commands");
+				SendClientMessage(playerid,COLOR_WHITE,"/report [message]; /detonate ; /blowup ; /stealth ; /warp ; /dropmoney [amount]");
+				SendClientMessage(playerid,COLOR_WHITE,"/dropbomb");
+			}
+		case 4:
 			{
 				TogglePlayerControllable(playerid,true);
 				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: How to destroy a bed?");
@@ -2185,7 +2207,7 @@ public OnPlayerSelectedMenuRow(playerid, row)
 				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: When does the game ends?");
 				SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: After a winning team is determined, means if only one team remains.");
 			}
-		case 2:
+		case 5:
 			{
 				TogglePlayerControllable(playerid,true);
 				SendClientMessage(playerid,COLOR_WHITE,"SERVER: If you commit one of these things it will get you banned!");
@@ -2954,17 +2976,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	}
 	if(strcmp(cmd, "/help", true) == 0) 
 	{
-		SendClientMessage(playerid,COLOR_WHITE,"How to play"); 
-		SendClientMessage(playerid,COLOR_WHITE,"The goal of this mode, is to destroy the enemie's bed and wipe out all the remaining players to determine the winner team."); 
-		SendClientMessage(playerid,COLOR_WHITE,"You can use the /blowup command to destroy and enemies bed!");
-		SendClientMessage(playerid,COLOR_WHITE,"If the game has not started, you can use F4 + /kill to switch to another team. Otherwise /kill is disabled.");
-		SendClientMessage(playerid,COLOR_WHITE,"Use /report to report any players or bugs. You can also report bugs by emailing to webmaster@knogleinsi.de.");
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: How to destroy a bed?");
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: Get close to the enemie's bed and use /blowup to destroy it!");
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: What can i do if i am unable to respawn due to a destroyed bed?");
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: You can use the command /spec [playerid] to spectate other players!");
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Q: When does the game ends?");
-		SendClientMessage(playerid,COLOR_WHITE,"SERVER: A: After a winning team is determined, means if only one team remains.");
+		ShowMenuForPlayer(infomenu,playerid);
 	}
 	if(strcmp(cmd, "/getplayerteam", true) == 0) 
 	{
@@ -3151,7 +3163,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		return SendClientMessage(playerid, COLOR_WHITE, "USAGE: /dropmoney [value]");
 		if(GetPlayerMoney(playerid) < dropval)
 		return SendClientMessage(playerid, COLOR_WHITE, "SERVER: You do not have enough money.");
-		if(maxmoney >= 4000 && dropval > 0 && dropval <= 100000 && (maxmoney+(dropval/MoneyVal))<(MAX_PICKUPS-sizeof(ActorPickups)-sizeof(InfoPickups)-1-((dropval/MoneyVal)+maxmoney)) && dropval != 0 && !IsPlayerInAnyVehicle(playerid))
+		if(maxmoney <= 4000 && dropval > 0 && dropval <= 100000 && (maxmoney+(dropval/MoneyVal))<(MAX_PICKUPS-sizeof(ActorPickups)-sizeof(InfoPickups)-1-((dropval/MoneyVal)+maxmoney)) && dropval != 0 && !IsPlayerInAnyVehicle(playerid))
 		{
 			if(dropval%MoneyVal == 0)
 			{
@@ -3560,8 +3572,14 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		return SendClientMessage(playerid, COLOR_WHITE, "USAGE: /report <message>");
 		GetPlayerName(playerid, Name1, sizeof(Name1));
 		format(str, sizeof(str), "{A9C4E4}SERVER: Incoming report from: %s(%d) regarding: %s", Name1, playerid, str2);
-		SendTeamMessage(gPlayerTeamSelection[playerid],COLOR_WHITE,str);
-		printf(str);
+		printf("Incoming report from a player: %s (%d) regarding: %s",Name1, playerid, str2);
+		for(new i;i<MAX_PLAYERS;i++)
+		{
+			if(IsPlayerAdmin(i))
+			{
+				SendClientMessageEx(i,COLOR_WHITE,str);	
+			}
+		}
 		return 1;
 	}
 	if(strcmp(cmdtext, "/blowup", true) == 0 && GameHasStarted == 1)
@@ -3603,7 +3621,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		return 0;
 
 	}
-	return 1;
+	return 0;
 
 }
 public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
@@ -4010,6 +4028,8 @@ public OnPlayerInteriorChange(playerid, newinteriorid, oldinteriorid)
 	return 1;
 }
 
+
+
 public OnPlayerSpawn(playerid)
 {
 	if(IsSpecing[playerid] == 1)
@@ -4257,6 +4277,20 @@ stock CreateGlobalActor(actorid,modelid,Float:ax,Float:ay,Float:az,Float:angle,F
 	printf("Actor created, pickupid %d",pickupid);
 	printf("Array pickupid %d",ActorPickups[Shop_Counter++]);
 	return pickupid;
+}
+stock IsPlayerInFrontOfPlayer(playerid)
+{
+	new Float:x, Float:y,Float:z;
+	GetPlayerPos(actorid, x, y, z);
+	GetPlayerFacingAngle(actorid, z);
+	x += (distance * floatsin(-a, degrees));
+	y += (distance * floatcos(-a, degrees));
+	new i;
+	for(i; i < MAX_PLAYERS;i++)
+	{
+		if(i == playerid) continue;
+		IsPlayerInRangeOfPoint(i,x,y,z) return i;
+	}
 }
 
 stock GetXYInFrontOfActor(actorid, &Float:x, &Float:y, Float:distance)
