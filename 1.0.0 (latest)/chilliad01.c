@@ -38,7 +38,8 @@
 
 #define DIALOG_REGISTER        (0)
 #define DIALOG_LOGIN           (1)
-
+#define DIALOG_SCOREBOARD      (2)
+#define DIALOG_NETSTATS        (3)
 
 new MySQL: Database, Corrupt_Check[MAX_PLAYERS];
 
@@ -1151,7 +1152,7 @@ FinishedGame()
 	}
 	for(new i;i<MAX_PLAYERS;i++)
 	{
-		ShowPlayerDialog(i, 1234, DIALOG_STYLE_MSGBOX, "Scoreboard",scorestring,"OK","");
+		ShowPlayerDialog(i, DIALOG_SCOREBOARD, DIALOG_STYLE_MSGBOX, "Scoreboard",scorestring,"OK","");
 	}
 	SendClientMessageToAll(COLOR_WHITE,"SERVER: Game over! Map is changing. Please standby..");
 	SetTimer("GMX",30000,false);
@@ -3511,7 +3512,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		return SendClientMessage(playerid, COLOR_WHITE, "SERVER: Player not connected");
 		
 		GetPlayerNetworkStats(targetplayer, stats, sizeof(stats)); // get a players networkstats
-		ShowPlayerDialog(playerid, 0, DIALOG_STYLE_MSGBOX, "Networkstats", stats, "Okay", "");
+		ShowPlayerDialog(playerid, DIALOG_NETSTATS, DIALOG_STYLE_MSGBOX, "Networkstats", stats, "Okay", "");
 	}
 	if(strcmp(cmd, "/stats", true) == 0)
 	{
