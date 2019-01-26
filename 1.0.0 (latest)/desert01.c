@@ -3621,7 +3621,11 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		return 0;
 
 	}
-	return 0;
+	else//SERVER: Unknown commmand
+	{
+	return 0;	
+	}
+	
 
 }
 public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
