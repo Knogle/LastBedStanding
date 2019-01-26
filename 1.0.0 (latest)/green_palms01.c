@@ -2977,6 +2977,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	if(strcmp(cmd, "/help", true) == 0) 
 	{
 		ShowMenuForPlayer(infomenu,playerid);
+		return 1;
 	}
 	if(strcmp(cmd, "/getplayerteam", true) == 0) 
 	{
@@ -3573,6 +3574,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		GetPlayerName(playerid, Name1, sizeof(Name1));
 		format(str, sizeof(str), "{A9C4E4}SERVER: Incoming report from: %s(%d) regarding: %s", Name1, playerid, str2);
 		printf("Incoming report from a player: %s (%d) regarding: %s",Name1, playerid, str2);
+		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Report sent!");
 		for(new i;i<MAX_PLAYERS;i++)
 		{
 			if(IsPlayerAdmin(i))
