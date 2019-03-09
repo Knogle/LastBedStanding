@@ -98,6 +98,11 @@ enum weather_info
 #define PRESSED(%0) \
 	(((newkeys & (%0)) == (%0)) && ((oldkeys & (%0)) != (%0)))	
 
+/*
+#define strcpy(%0,%1) \
+	strcat((%0[0] = '\0', %0), %1)
+*/	
+
 #define FIRST_TEAM 0 
 #define SECOND_TEAM 1 
 #define THIRD_TEAM 2
@@ -305,10 +310,10 @@ new hour, minute;
 new ActorPickups[sizeof(GlobalActors)];
 new InfoPickups[sizeof(PlayerInfoPickups)];
 new MoneyPickups[MAX_PICKUPS-sizeof(ActorPickups)-sizeof(InfoPickups)-1];
-//
 new BedArray[TEAMSIZE];
 new BedStates[TEAMSIZE];
 new TEAM_ZONE[TEAMSIZE];
+//
 
 
 
@@ -359,7 +364,11 @@ stock binarysearch2(a[][],idx,key,l,r)
 	}
 	return -1;
 }
-
+stock round(num)
+{
+	new rem = num % 10;
+	return rem >= 5 ? (num - rem + 10) : (num - rem);
+}
 stock SendClientMessageEx(playerid, color, fstring[], {Float, _}:...)
 {
 	static const
@@ -534,15 +543,15 @@ public OnGameModeInit()
 
 	
 	
-	for(new t;t<sizeof(MoneyPickups);t++)
+	for(new t;t<sizeof(MoneyPickups);t++)//Initialize array
 	{
 		MoneyPickups[t]=-1;
 	}
-	for(new d;d<sizeof(ActorPickups);d++)
+	for(new d;d<sizeof(ActorPickups);d++)//Initialize array
 	{
 		ActorPickups[d]=-1;
 	}
-	for(new f;f<sizeof(InfoPickups);f++)
+	for(new f;f<sizeof(InfoPickups);f++)//Initialize array
 	{
 		InfoPickups[f]=-1;
 	}
@@ -553,17 +562,17 @@ public OnGameModeInit()
 	SetTimer("RandomWeather", 300000, 1);
 	
 
-	for(new zone;zone<TEAMSIZE;zone++)
+	for(new zone;zone<TEAMSIZE;zone++)//Initialize gang zones / team zones
 	{
 		TEAM_ZONE[zone]=GangZoneCreate(GlobalZones[zone][0],GlobalZones[zone][1],GlobalZones[zone][2],GlobalZones[zone][3]);//Create Gangzones
 	}
 	
-	for(new g=0;g<sizeof(GlobalActors);g++)
+	for(new g=0;g<sizeof(GlobalActors);g++)//Initialize shops / actors to buy stuff
 	{
 		CreateGlobalActor(g+1,274,GlobalActors[g][0],GlobalActors[g][1],GlobalActors[g][2],GlobalActors[g][3],3.0,g);		
 		SetActorInvulnerable(g+1, true);
 	}
-	for(new t=0;t<sizeof(InfoPickups);t++)
+	for(new t=0;t<sizeof(InfoPickups);t++)//Initialize info pickups to get basic information
 	{
 		InfoPickups[t]=CreatePickup(1239,2,PlayerInfoPickups[t][0],PlayerInfoPickups[t][1],PlayerInfoPickups[t][2],0);
 	}
@@ -794,7 +803,7 @@ LockAllVehicles()
 {
 	for(new i;i<MAX_VEHICLES;i++)
 	{
-		SetVehicleParamsEx(i,0, 0, 0, 1, 0, 0, 0);
+		SetVehicleParamsEx(i,1, 0, 0, 1, 0, 0, 0);
 	}
 	return 1;
 }
@@ -1141,6 +1150,10 @@ FinishedGame()
 			}
 			
 		}
+	}
+	else
+	{
+		return 0;
 	}
 	format(scorestring,sizeof(scorestring),"Duration of the game: %d minutes (%d seconds) \n Team: %s{A9C4E4} has won the game! ",minutes,totaltime,GetTeamColorTag(remainingTeamID));
 	for(new i,pID; i<counter; i++)
@@ -1553,16 +1566,16 @@ main()
 	print("	Copyright (C) 2017  Fabian Druschke");
 	print("	Contact: webmaster@knogleinsi.de");
 	print("	Mail: Postfach 32 22 50147 Kerpen Germany");
-	print("   \n This program is free software: you can redistribute it and/or modify");
-	print("    it under the terms of the GNU General Public License as published by");
-	print("    the Free Software Foundation, either version 3 of the License, or");
-	print("    (at your option) any later version.");
-	print("   \n This program is distributed in the hope that it will be useful,");
-	print("    but WITHOUT ANY WARRANTY; without even the implied warranty of");
-	print("    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the");
-	print("    GNU General Public License for more details.");
-	print("   \n You should have received a copy of the GNU General Public License");
-	print("    along with this program.  If not, see http://www.gnu.org/licenses/");
+	print("\nThis program is free software: you can redistribute it and/or modify");
+	print("it under the terms of the GNU General Public License as published by");
+	print("the Free Software Foundation, either version 3 of the License, or");
+	print("(at your option) any later version.");
+	print("\n This program is distributed in the hope that it will be useful,");
+	print("but WITHOUT ANY WARRANTY; without even the implied warranty of");
+	print("MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the");
+	print("GNU General Public License for more details.");
+	print("\n You should have received a copy of the GNU General Public License");
+	print("along with this program.  If not, see http://www.gnu.org/licenses/");
 	printf("\n\nHeapspace: %i kilobytes", heapspace() / 1024);
 
 }
@@ -3626,7 +3639,13 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	}
 	else//SERVER: Unknown commmand
 	{
-	return 0;	
+		new name[MAX_PLAYER_NAME + 1];
+		GetPlayerName(playerid, name, sizeof(name));
+
+		new string[MAX_PLAYER_NAME + 23 + 1];
+		format(string, sizeof(string), "%s (%d) tried to deploy following invalid command: %s ", name,playerid,cmdtext);
+		printf(string);
+		return 0;	
 	}
 	
 
@@ -3954,6 +3973,7 @@ public BlowUpThisBed(teamid)
 		SendTeamMessage(teamid,COLOR_WHITE,"SERVER: Sudden death! Keep running, your bed has been blown up! There is no respawn after death!");
 		new adstring[64];
 		format(adstring,sizeof(adstring),"SERVER: The bed of team %s {FFFFFF}blew up!",GetTeamColorTag(teamid));
+		printf(adstring);
 		SendClientMessageToAll(-1,adstring);
 		GangZoneHideForAll(TEAM_ZONE[teamid]);
 		DestroyObject(BedArray[teamid]);//Destroy/Remove the bed of this team after blowing up
