@@ -488,7 +488,7 @@ public OnGameModeInit()
 	
 	
 	
-	for(new i;i<sizeof(BedStates);i++)
+	for(new i;i<TEAMSIZE;i++)
 	{
 		BedStates[i]=1;
 	}
@@ -2804,6 +2804,7 @@ public OnPlayerDisconnect(playerid, reason)
 	LastMoney[playerid]=0;
 	
 	ResetPlayerData(playerid);
+	gPlayerHasTeamSelected[playerid] = 0;
 	if(IsBeingSpeced[playerid] == 1)
 	{
 		for(new i;i<MAX_PLAYERS;i++)
@@ -3735,7 +3736,6 @@ public OnPlayerDeath(playerid, killerid, reason)
 	new playercash;
 	playercash = GetPlayerMoney(playerid);
 	SendDeathMessage(killerid, playerid, reason); // Shows the kill in the killfeed
-	gPlayerHasTeamSelected[playerid] = 0;
 	TextDrawHideForPlayer(playerid,txtTimeDisp);
 	playercash = GetPlayerMoney(playerid);
 	ResetPlayerMoney(playerid);
@@ -3781,7 +3781,14 @@ public OnPlayerDeath(playerid, killerid, reason)
 	if(GetActiveTeamCount() < 2 && GameHasStarted)
 	{
 		SetTimer("TeamRemaining",1000,false);
+		/*Debug only
 		printf("Timer set");
+		printf("Active Team Count: %d",GetActiveTeamCount());
+		for(new i;i<TEAMSIZE;i++)
+		{
+			printf("Amount of players in Team: %d:  %d",i,GetTeamPlayerCount(i));
+		}
+		*/
 	}
 	if(IsBeingSpeced[playerid] == 1)
 	{
