@@ -54,7 +54,7 @@ enum
 	COUNTRYSIDE_2
 };
 
-#define MAPTYPE COUNTRYSIDE_1
+#define MAPTYPE BONE_COUNTY
 
 enum pInfo
 {
@@ -170,6 +170,7 @@ forward TeamRemaining();
 forward FinishedGame();
 forward LockAllVehicles();
 forward UnlockAllVehicles();
+forward SetMapType(maptype);
 
 
 //----------------------------------------------------------
@@ -437,6 +438,13 @@ public OnPlayerDataSave(playerid)
 }
 public OnGameModeExit()
 {
+
+	// Select a random value from the enum (0-6)
+	new randomMap = random(7); // 7 maps, so index is 0-6
+
+	// Dynamically set the map type based on the random enum value
+	SetMapType(randomMap);
+
 	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(IsPlayerConnected(i)) // Checking if the players stored in "i" are connected.
@@ -780,6 +788,48 @@ stock GetXYInFrontOfPlayer(playerid, &Float:x, &Float:y, Float:distance)
 	}
 	x += (distance * floatsin(-a, degrees));
 	y += (distance * floatcos(-a, degrees));
+}
+stock SetMapType(maptype)
+{
+    // Use switch to handle the logic for each map based on the enum
+    switch(maptype)
+    {
+        case CHILLIAD:
+        {
+            printf("Loading Chilliad Map");
+            // Add the specific logic for the Chilliad map here
+        }
+        case SAN_FIERRO_DOCKS:
+        {
+            printf("Loading San Fierro Docks Map");
+            // Add the specific logic for San Fierro Docks here
+        }
+        case BONE_COUNTY:
+        {
+            printf("Loading Bone County Map");
+            // Add the specific logic for Bone County here
+        }
+        case MAD_DOGGS:
+        {
+            printf("Loading Mad Doggs Map");
+            // Add the specific logic for Mad Doggs here
+        }
+        case COUNTRYSIDE_1:
+        {
+            printf("Loading Countryside 1 Map");
+            // Add the specific logic for Countryside 1 here
+        }
+        case GREEN_PALMS:
+        {
+            printf("Loading Green Palms Map");
+            // Add the specific logic for Green Palms here
+        }
+        case COUNTRYSIDE_2:
+        {
+            printf("Loading Countryside 2 Map");
+            // Add the specific logic for Countryside 2 here
+        }
+    }
 }
 stock Float:frandom(Float:max, Float:min = 0.0, dp = 4)
 {
