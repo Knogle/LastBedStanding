@@ -1,13 +1,12 @@
 
 
 /*
-	Knogles Last Bed Standing Masterpiece for SA-MP
-	Fork of Minecrafts Bedwars 
+	Knogles Last Bed Standing Masterpiece for open.mp
+	Inspired by Minecrafts Bedwars 
 	Little TDM Gamemode
 	Published under GNU GPL Public License.
-	Copyright (C) 2017  Fabian Druschke
-	Contact: webmaster@knogleinsi.de
-	Mail: Postfach 32 22 50147 Kerpen Germany
+	Copyright (C) 2026  Fabian Druschke
+	Contact: fdruschke@outlook.com
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -23,14 +22,15 @@
 	along with this program.  If not, see http://www.gnu.org/licenses/
 
 */
+#define SAMP_COMPAT
 
-#include <a_samp>
+#include <open.mp>
 #include <sscanf2>
+#include <YSI_Storage/y_ini.inc>
 #include <a_mysql>
-#include <YSI\y_ini>
 #include <md-sort>
 
-#define MYSQL_HOST        "localhost" // Change this to your MySQL Remote IP or "localhost".
+#define MYSQL_HOST        "mariadb.intranet.druschke.network" // Change this to your MySQL Remote IP or "localhost".
 #define MYSQL_USER        "server" // Change this to your MySQL Database username.
 #define MYSQL_PASS        "ylw5dchQKpMNLSuxc4uVYHrCu51nSfXF" // Change this to your MySQL Database password.
 #define MYSQL_DATABASE    "samp" // Change this to your MySQL Database name.
@@ -149,7 +149,7 @@ forward TeleportPlayerToBase(playerid);
 forward reveal(playerid);
 forward quickSort(array[], left, right);
 forward PrepareToBlowUp(playerid);
-forward GetPickupType(pickupid, &index);
+forward GetDynamicPickupType(pickupid, &index);
 forward Float:frandom(Float:max, Float:min = 0.0, dp = 4);
 forward GetXYInFrontOfActor(actorid, &Float:x, &Float:y, Float:distance);
 forward GetXYInFrontOfPlayer(playerid, &Float:x, &Float:y, Float:distance);
@@ -202,7 +202,7 @@ new Helmet[MAX_PLAYERS];
 new BombObject[MAX_PLAYERS];
 new timestr[32];
 new timestrex[32];
-new delay=1000;// only allow new selection every ~1000 ms; may differ due to server load
+new selectiondelay=1000;// only allow new selection every ~1000 ms; may differ due to server load
 new bombtimer=5000;// time in ms to blow up closest bed
 new MoneyDropTimer=2500;// Time to generate new moneypickups
 new Shop_Counter;
@@ -323,7 +323,7 @@ new TEAM_ZONE[TEAMSIZE];
 
 #define BYTECOUNT  (cellbits / 8)
 
-stock binarysearch(a[],key,l,r)
+stock binarysearch(const a[], key, l, r)
 {
 	new k;
 	while(r >=l)
@@ -344,7 +344,7 @@ stock binarysearch(a[],key,l,r)
 	}    
 	return -1;
 }
-stock binarysearch2(a[][],idx,key,l,r)
+stock binarysearch2(const a[][], idx, key, l, r)
 {
 	new k;
 	while(r >=l)
@@ -370,52 +370,6 @@ stock round(num)
 	new rem = num % 10;
 	return rem >= 5 ? (num - rem + 10) : (num - rem);
 }
-stock SendClientMessageEx(playerid, color, fstring[], {Float, _}:...)
-{
-	static const
-	ARGC = 3;
-	new n = (numargs() - ARGC) * BYTECOUNT;
-	if (n)
-	{
-		new message[128], arg_start, arg_end;
-		#emit CONST.alt        fstring
-		#emit LCTRL          5
-		#emit ADD
-		#emit STOR.S.pri        arg_start
-		#emit LOAD.S.alt        n
-		#emit ADD
-		#emit STOR.S.pri        arg_end
-		do
-		{
-			#emit LOAD.I
-			#emit PUSH.pri
-			arg_end -= BYTECOUNT;
-			#emit LOAD.S.pri      arg_end
-		}
-		while (arg_end > arg_start);
-		#emit PUSH.S          fstring
-		#emit PUSH.C          128
-		#emit PUSH.ADR         message
-		n += BYTECOUNT * 3;
-		#emit PUSH.S          n
-		#emit SYSREQ.C         format
-		n += BYTECOUNT;
-		#emit LCTRL          4
-		#emit LOAD.S.alt        n
-		#emit ADD
-		#emit SCTRL          4
-		return SendClientMessage(playerid, color, message);
-	}
-	else
-	{
-		return SendClientMessage(playerid, color, fstring);
-	}
-}
-
-
-
-
-
 
 public OnPlayerDataSave(playerid)
 {
@@ -480,7 +434,7 @@ public OnGameModeExit()
 		GetPlayerName(i, name, sizeof(name));
 		for(new k=MAX_PLAYERS;k-->0;)
 		{
-			SendClientMessageEx(k,COLOR_WHITE,"SERVER: %s (%d) has been kicked due to inactivity",name,i);	
+			SendClientMessage(k, COLOR_WHITE, "SERVER: %s (%d) has been kicked due to inactivity", name, i);	
 		}
 		
 		AFK_SYS[i] = 0;
@@ -500,7 +454,6 @@ public OnGameModeInit()
 	{
 		BedStates[i]=1;
 	}
-	mysql_log(ALL);
 	new MySQLOpt: option_id = mysql_init_options();
 	mysql_set_option(option_id, AUTO_RECONNECT, true); // We will set that option to automatically reconnect on timeouts.
 	mysql_set_option(option_id,SERVER_PORT,3306);
@@ -565,9 +518,9 @@ public OnGameModeInit()
 	}
 	LockAllVehicles();
 	SendRconCommand("mapname "#MAPTYPE);
-	SetTimer("@AFK_CHECK",9973,1);
-	SetTimer("RespawnAllVehicles",UnusedVehTimer, 1);
-	SetTimer("RandomWeather", 300000, 1);
+	SetTimer("@AFK_CHECK",9973,true);
+	SetTimer("RespawnAllVehicles",UnusedVehTimer, true);
+	SetTimer("RandomWeather", 300000, true);
 	
 
 	for(new zone;zone<TEAMSIZE;zone++)//Initialize gang zones / team zones
@@ -733,13 +686,13 @@ public OnGameModeInit()
 	
 
 	UpdateTimeAndWeather();
-	SetTimer("UpdateTimeAndWeather",1000 * 60,1);
+	SetTimer("UpdateTimeAndWeather",1000 * 60,true);
 	SetGameModeText("Bedwars");
 	ShowPlayerMarkers(PLAYER_MARKERS_MODE_GLOBAL);
-	ShowNameTags(1);
+	ShowNameTags(true);
 	SetNameTagDrawDistance(40.0);
 
-	EnableStuntBonusForAll(0);
+	EnableStuntBonusForAll(false);
 	SetWeather(2);
 
 
@@ -756,7 +709,7 @@ public OnGameModeInit()
 	
 	txtSpectatorHelper = TextDrawCreate(10.0, 415.0,
 	" Press ~b~~k~~GO_LEFT~ ~w~or ~b~~k~~GO_RIGHT~ ~w~to switch between players.");
-	TextDrawUseBox(txtSpectatorHelper, 1);
+	TextDrawUseBox(txtSpectatorHelper, true);
 	TextDrawBoxColor(txtSpectatorHelper,0x22222266);
 	TextDrawLetterSize(txtSpectatorHelper,0.3,1.0);
 	TextDrawTextSize(txtSpectatorHelper,400.0,40.0);
@@ -767,7 +720,7 @@ public OnGameModeInit()
 	TextDrawColor(txtSpectatorHelper,0xFFFFFFFF);
 	
 	txtTimeDisp = TextDrawCreate(605.0,25.0,"00:00");
-	TextDrawUseBox(txtTimeDisp, 0);
+	TextDrawUseBox(txtTimeDisp, false);
 	TextDrawFont(txtTimeDisp, 3);
 	TextDrawSetShadow(txtTimeDisp,0); // no shadow
 	TextDrawSetOutline(txtTimeDisp,2); // thickness 1
@@ -1031,7 +984,7 @@ stock SpecPlayer(playerid,targetplayer)
 stock SpecRandomPlayer(playerid)
 {
 	new randoms[MAX_PLAYERS],idx;
-	for(new i=GetPlayerPoolSize(); i!=-1; i--)
+	for(new i = 0, maxPlayers = GetMaxPlayers(); i < maxPlayers; i++)
 	{
 		if(IsPlayerConnected(i) && gPlayerTeamSelection[i] != TEAM_SPECTATOR && playerid != i)
 		{
@@ -1173,7 +1126,7 @@ FinishedGame()
 {
 	GameHasFinished=1;
 	new scoreTable[MAX_PLAYERS][2], counter;
-	for(new i = GetPlayerPoolSize(); i!=-1; i--)
+	for(new i = 0, maxPlayers = GetMaxPlayers(); i < maxPlayers; i++)
 	{
 		if(!IsPlayerConnected(i) || IsPlayerNPC(i)) continue;
 		scoreTable[i][0] = playerdataInfo[i][pKills];
@@ -1266,7 +1219,7 @@ public TeamRemaining()
 	
 	for(new d;d<MAX_PLAYERS;d++)
 	{
-		SendClientMessageEx(d,COLOR_WHITE,"SERVER: All remaining teams have been wiped. Team %s {FFFFFF}has won the game!",GetTeamColorTag(remainingTeamID));
+		SendClientMessage(d, COLOR_WHITE, "SERVER: All remaining teams have been wiped. Team %s {FFFFFF}has won the game!", GetTeamColorTag(remainingTeamID));
 		
 	}	
 	printf("SERVER: All remaining teams have been wiped. Team %d has won the game!",remainingTeamID);
@@ -1294,18 +1247,17 @@ public StartGame()
 			GameHasStarted =1;
 			GameTextForAll("~g~ Start!",1000,6);
 			UnlockAllVehicles();
-			
+				
 			for(new i = 0; i < MAX_PLAYERS; i++)
 			{
 				if(gPlayerHasTeamSelected[i] == 1)
 				{
-					SendClientMessageEx(i,COLOR_WHITE,"SERVER: The game will now start! Get ready! We have %d active teams!",GetActiveTeamCount());
+					SendClientMessage(i, COLOR_WHITE, "SERVER: The game will now start! Get ready! We have %d active teams!", GetActiveTeamCount());
 					SpawnPlayer(i);
-					TogglePlayerControllable(i,1);
+					TogglePlayerControllable(i, true);
 					SetTimerEx("TeleportPlayerToBase",100,false,"i",i);
 					ResetPlayerData(i);
-					SetPlayerInvulnerable(i,0);
-					
+					SetPlayerInvulnerable(i, false);
 				}
 			}	
 		}
@@ -1325,7 +1277,7 @@ public StartGame()
 			
 			for(new i = 0; i < MAX_PLAYERS; i++)
 			{
-				SendClientMessageEx(i,COLOR_WHITE,"SERVER: The game will start in 30 seconds. Check /help, or use /report if you need further information. ",currentplayers,GetActiveTeamCount());
+				SendClientMessage(i, COLOR_WHITE, "SERVER: The game will start in 30 seconds. Check /help, or use /report if you need further information. ", currentplayers, GetActiveTeamCount());
 			}
 			
 		}
@@ -1345,7 +1297,7 @@ public StartGame()
 			
 			for(new i = 0; i < MAX_PLAYERS; i++)
 			{
-				SendClientMessageEx(i,COLOR_WHITE,"SERVER: The game will start in 15 seconds, prepare to start. There are %d Players in %d teams.",currentplayers,GetActiveTeamCount());
+				SendClientMessage(i, COLOR_WHITE, "SERVER: The game will start in 15 seconds, prepare to start. There are %d Players in %d teams.", currentplayers, GetActiveTeamCount());
 			}
 			
 		}
@@ -1365,7 +1317,7 @@ public StartGame()
 			
 			for(new i = 0; i < MAX_PLAYERS; i++)
 			{
-				SendClientMessageEx(i,COLOR_WHITE,"SERVER: The game will start in 5 seconds, prepare to start. There are %d Players in %d teams.",currentplayers,GetActiveTeamCount());
+				SendClientMessage(i, COLOR_WHITE, "SERVER: The game will start in 5 seconds, prepare to start. There are %d Players in %d teams.", currentplayers, GetActiveTeamCount());
 			}
 			
 		}
@@ -1516,7 +1468,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 	
 	
 	new index;
-	switch(GetPickupType(pickupid,index))
+	switch(GetDynamicPickupType(pickupid,index))
 	{
 	case INVALID_PICKUP_TYPE:
 		{
@@ -1550,7 +1502,7 @@ public OnPlayerPickUpPickup(playerid, pickupid)
 
 
 
-stock GetPickupType(pickupid, &index)
+stock GetDynamicPickupType(pickupid, &index)
 {
 	new mres = binarysearch(MoneyPickups,pickupid,0,sizeof(MoneyPickups)-1);
 	if(mres > -1 && MoneyPickups[mres] == pickupid) return index=mres,MONEY_TYPE;
@@ -1710,9 +1662,9 @@ static stock Swap (&a, &b)
 }
 
 //----------------------------------------------------------
-stock PreloadAnimLib(playerid, animlib[]) 
+stock PreloadAnimLib(playerid, const animlib[]) 
 {
-	ApplyAnimation(playerid,animlib,"null",0.0,0,0,0,0,0);
+	ApplyAnimation(playerid, animlib, "null", 0.0, false, false, false, false, 0);
 }
 
 
@@ -1722,10 +1674,12 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 	{
 	case DIALOG_LOGIN:
 		{
-			if(!response) return Kick(playerid);
+				if(!response) return Kick(playerid);
 
-			new Salted_Key[65];
-			SHA256_PassHash(inputtext, playerdataInfo[playerid][Salt], Salted_Key, 65);
+				new Salted_Key[65];
+#pragma warning disable 234
+				SHA256_PassHash(inputtext, playerdataInfo[playerid][Salt], Salted_Key, 65);
+#pragma warning enable 234
 
 			if(strcmp(Salted_Key, playerdataInfo[playerid][pPass]) == 0)
 			{
@@ -1809,13 +1763,15 @@ public OnDialogResponse(playerid, dialogid, response, listitem, inputtext[])
 
 				// Salting the player's password using SHA256 for a better security.
 				
-				for (new i = 0; i < 10; i++)
-				{
-					playerdataInfo[playerid][Salt][i] = random(79) + 47;
-				}
-				
-				playerdataInfo[playerid][Salt][10] = 0;
-				SHA256_PassHash(inputtext, playerdataInfo[playerid][Salt], playerdataInfo[playerid][pPass], 65);
+					for (new i = 0; i < 10; i++)
+					{
+						playerdataInfo[playerid][Salt][i] = random(79) + 47;
+					}
+					
+					playerdataInfo[playerid][Salt][10] = 0;
+#pragma warning disable 234
+					SHA256_PassHash(inputtext, playerdataInfo[playerid][Salt], playerdataInfo[playerid][pPass], 65);
+#pragma warning enable 234
 
 				new DB_Query[225];
 				
@@ -2016,15 +1972,15 @@ stock ClassSel_InitTeamNameText(playerid,PlayerText:txtInit)
 	PlayerTextDrawLetterSize(playerid,txtInit,0.399999,1.500000);
 	PlayerTextDrawColor(playerid,txtInit,0xffffffff);
 	PlayerTextDrawSetOutline(playerid,txtInit,1);
-	PlayerTextDrawSetProportional(playerid,txtInit,1);
-	PlayerTextDrawSetShadow(playerid,txtInit,1);
+	PlayerTextDrawSetProportional(playerid, txtInit, true);
+	PlayerTextDrawSetShadow(playerid, txtInit, true);
 	PlayerTextDrawBackgroundColor(playerid,txtInit,0x000000ff);
 	PlayerTextDrawFont(playerid,txtInit,2);
 	PlayerTextDrawLetterSize(playerid,txtInit,0.399999,1.500000);
 	PlayerTextDrawColor(playerid,txtInit,0xffffffff);
 	PlayerTextDrawSetOutline(playerid,txtInit,1);
-	PlayerTextDrawSetProportional(playerid,txtInit,1);
-	PlayerTextDrawSetShadow(playerid,txtInit,1);
+	PlayerTextDrawSetProportional(playerid, txtInit, true);
+	PlayerTextDrawSetShadow(playerid, txtInit, true);
 }
 
 stock ClassSel_SwitchToNextTeam(playerid)
@@ -2126,7 +2082,7 @@ stock ClassSel_SwitchToPreviousTeam(playerid)
 stock getActingPlayer(playerid,&idx)
 {
 	new randoms[MAX_PLAYERS],tmp;
-	for(new i=GetPlayerPoolSize(); i!=-1; i--)
+	for(new i = 0, maxPlayers = GetMaxPlayers(); i < maxPlayers; i++)
 	{
 		if(IsPlayerConnected(i) && gPlayerTeamSelection[i] != TEAM_SPECTATOR && playerid != i)
 		{
@@ -2140,7 +2096,7 @@ stock getActingPlayer(playerid,&idx)
 }
 stock HandlePlayerSpectating(playerid)
 {
-	if( (GetTickCount() - gPlayerLastTeamSelectionTick[playerid]) < delay ) return 1;
+	if( (GetTickCount() - gPlayerLastTeamSelectionTick[playerid]) < selectiondelay ) return 1;
 	new Keys,ud,lr;
 	GetPlayerKeys(playerid,Keys,ud,lr);
 	if(lr == KEY_RIGHT)
@@ -2179,7 +2135,7 @@ stock ClassSel_HandleTeamSelection(playerid)
 	}
 
 
-	if( (GetTickCount() - gPlayerLastTeamSelectionTick[playerid]) < delay ) return;
+	if( (GetTickCount() - gPlayerLastTeamSelectionTick[playerid]) < selectiondelay ) return;
 
 	if(Keys & KEY_FIRE) {
 		gPlayerHasTeamSelected[playerid] = 1;
@@ -2188,7 +2144,7 @@ stock ClassSel_HandleTeamSelection(playerid)
 		PlayerTextDrawHide(playerid,LocText[playerid]);
 		PlayerTextDrawHide(playerid,TeamCover[playerid]);
 		TextDrawHideForPlayer(playerid,txtClassSelHelper);//Observer textdraw
-		TogglePlayerSpectating(playerid,0);
+		TogglePlayerSpectating(playerid, false);
 		return;
 	}
 	if(lr > 0) {
@@ -2211,7 +2167,7 @@ public OnPlayerRequestClass(playerid, classid)
 	else 
 	{
 		if(GetPlayerState(playerid) != PLAYER_STATE_SPECTATING) {
-			TogglePlayerSpectating(playerid,1);
+			TogglePlayerSpectating(playerid,true);
 			TextDrawShowForPlayer(playerid, txtClassSelHelper);
 			gPlayerTeamSelection[playerid] = -1;
 		}
@@ -2699,41 +2655,41 @@ public OnPlayerSelectedMenuRow(playerid, row)
 			}
 		case 2:
 			{
-				if(GetPlayerMoney(playerid) >= 85000)
-				{
-					PStealth[playerid]=1;
-					SendClientMessage(playerid,COLOR_WHITE,"SERVER: You are equipped with a stealth kit. You can use /stealth to hide yourself");
-					GivePlayerMoneyText(playerid,-85000);
-					TogglePlayerControllable(playerid,1);
-				}
-				else
-				{
-					SendClientMessage(playerid,COLOR_WHITE,"SERVER: Insufficient balance! You can not afford this item!");
-					TogglePlayerControllable(playerid,1);
-				}
+					if(GetPlayerMoney(playerid) >= 85000)
+					{
+						PStealth[playerid]=1;
+						SendClientMessage(playerid,COLOR_WHITE,"SERVER: You are equipped with a stealth kit. You can use /stealth to hide yourself");
+						GivePlayerMoneyText(playerid,-85000);
+						TogglePlayerControllable(playerid, true);
+					}
+					else
+					{
+						SendClientMessage(playerid,COLOR_WHITE,"SERVER: Insufficient balance! You can not afford this item!");
+						TogglePlayerControllable(playerid, true);
+					}
 				
 			}
 		case 3: if(GetPlayerMoney(playerid) >= 100000 && PBomb[playerid] == 0)
 			{
-				PBomb[playerid]=1;
-				SendClientMessage(playerid, 0xFFFFFFFF, "SERVER: You have bought a bomb! Now you can place bombs by using /dropbomb!");
-				ShowMenuForPlayer(shopmenu,playerid);
-				TogglePlayerControllable(playerid,false);
-				GivePlayerMoneyText(playerid,-100000);
+					PBomb[playerid]=1;
+					SendClientMessage(playerid, 0xFFFFFFFF, "SERVER: You have bought a bomb! Now you can place bombs by using /dropbomb!");
+					ShowMenuForPlayer(shopmenu,playerid);
+					TogglePlayerControllable(playerid, false);
+					GivePlayerMoneyText(playerid,-100000);
 			}
 			else if(PBomb[playerid] != 0)
 			{
-				SendClientMessage(playerid,COLOR_WHITE,"SERVER: You already bought this item!");
-				TogglePlayerControllable(playerid,1);
+					SendClientMessage(playerid,COLOR_WHITE,"SERVER: You already bought this item!");
+					TogglePlayerControllable(playerid, true);
 			}
 			else if(GetPlayerMoney(playerid) < 100000)
 			{
 				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Insufficient balance! You can not afford this item!");
 				ShowMenuForPlayer(shopmenu,playerid);
-				TogglePlayerControllable(playerid,false);
+				TogglePlayerControllable(playerid, false);
 			}
-		case 4: if(GetPlayerMoney(playerid) >= 50000 && Warppowder[playerid] == 0)
-			
+		case 4:
+			if(GetPlayerMoney(playerid) >= 50000 && Warppowder[playerid] == 0)
 			{
 				Warppowder[playerid]=1;
 				SendClientMessage(playerid, 0xFFFFFFFF, "SERVER: You have bought a Warpkit! You can teleport yourself back to your base by using /warp");
@@ -2744,16 +2700,16 @@ public OnPlayerSelectedMenuRow(playerid, row)
 			else if(Warppowder[playerid] != 0)
 			{
 				SendClientMessage(playerid,COLOR_WHITE,"SERVER: You already bought this item!");
-				TogglePlayerControllable(playerid,1);
+				TogglePlayerControllable(playerid, true);
 			}
 			else if(GetPlayerMoney(playerid) < 50000)
 			{
 				SendClientMessage(playerid,COLOR_WHITE,"SERVER: Insufficient balance! You can not afford this item!");
 				ShowMenuForPlayer(shopmenu,playerid);
-				TogglePlayerControllable(playerid,false);
+				TogglePlayerControllable(playerid, false);
 			}
-		case 5: if(GetPlayerMoney(playerid) >= 5000 && Helmet[playerid] == 0)
-			
+		case 5:
+			if(GetPlayerMoney(playerid) >= 5000 && Helmet[playerid] == 0)
 			{
 				Helmet[playerid]=1;
 				SendClientMessage(playerid, 0xFFFFFFFF, "SERVER: You have bought a Helmet! You are now protected against headshots!");
@@ -2764,7 +2720,7 @@ public OnPlayerSelectedMenuRow(playerid, row)
 			else if(Helmet[playerid] != 0)
 			{
 				SendClientMessage(playerid,COLOR_WHITE,"SERVER: You already bought this item!");
-				TogglePlayerControllable(playerid,1);
+				TogglePlayerControllable(playerid, true);
 			}
 			else if(GetPlayerMoney(playerid) < 5000)
 			{
@@ -3015,8 +2971,8 @@ public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 	new Float:kd =  floatdiv(kills,deaths);
 	new name[MAX_PLAYER_NAME];
 	GetPlayerName(clickedplayerid, name, sizeof(name));
-	SendClientMessageEx(playerid, COLOR_WHITE,"SERVER: Player Stats of %s(%d) Team: %s ",name,clickedplayerid,GetPlayerTeamColorTag(clickedplayerid));
-	SendClientMessageEx(playerid, COLOR_WHITE,"Kills:%d Deaths:%d Ratio:%0.2f Blown beds:%d Bombs detonated:%d",kills,deaths,kd,PlayerInfo[clickedplayerid][pBeds],PlayerInfo[clickedplayerid][pBombs]);
+	SendClientMessage(playerid, COLOR_WHITE, "SERVER: Player Stats of %s(%d) Team: %s ", name, clickedplayerid, GetPlayerTeamColorTag(clickedplayerid));
+	SendClientMessage(playerid, COLOR_WHITE, "Kills:%d Deaths:%d Ratio:%0.2f Blown beds:%d Bombs detonated:%d", kills, deaths, kd, PlayerInfo[clickedplayerid][pBeds], PlayerInfo[clickedplayerid][pBombs]);
 	return 1;
 }															 
 public OnPlayerCommandText(playerid, cmdtext[])
@@ -3051,7 +3007,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		return SendClientMessage(playerid, COLOR_WHITE, "USAGE: /getplayerteam [playerid]");
 		if(!IsPlayerConnected(targetplayer))
 		return SendClientMessage(playerid, COLOR_WHITE, "SERVER: Player not connected");
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Player %d is part of Team: %s",targetplayer,GetPlayerTeamColorTag(targetplayer));
+		SendClientMessage(playerid, COLOR_WHITE, "SERVER: Player %d is part of Team: %s", targetplayer, GetPlayerTeamColorTag(targetplayer));
 	}
 	if(strcmp(cmd, "/stealth", true) == 0) 
 	{
@@ -3218,7 +3174,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	{
 		if(!IsPlayerAdmin(playerid)) return 0;
 		if(IsSpecing[playerid] == 0)return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You are not spectating");
-		TogglePlayerSpectating(playerid, 0);
+		TogglePlayerSpectating(playerid, false);
 		return 1;
 	}
 	// Prototyp
@@ -3254,7 +3210,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 
 				if(dropval%MoneyVal != 0)
 				{
-					SendClientMessageEx(playerid, COLOR_WHITE, "SERVER: The desired value must be divisible by $%d",MoneyVal);
+					SendClientMessage(playerid, COLOR_WHITE, "SERVER: The desired value must be divisible by $%d", MoneyVal);
 				}
 
 			}
@@ -3318,7 +3274,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			if(!IsPlayerConnected(targetplayer))
 			return SendClientMessage(playerid, COLOR_WHITE, "SERVER: Player not connected");
 			if(gPlayerTeamSelection[targetplayer] == TEAM_SPECTATOR)
-			return SendClientMessageEx(playerid, COLOR_WHITE,"SERVER: Cannot kill Player %d, player %d is part of Team %s",targetplayer,targetplayer,GetPlayerTeamColorTag(targetplayer));
+			return SendClientMessage(playerid, COLOR_WHITE, "SERVER: Cannot kill Player %d, player %d is part of Team %s", targetplayer, targetplayer, GetPlayerTeamColorTag(targetplayer));
 			SetPlayerHealth(targetplayer,0.0);
 		}	
 		else
@@ -3388,7 +3344,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			if(gPlayerHasTeamSelected[targetplayer] == -1)
 			return SendClientMessage(playerid, COLOR_WHITE, "SERVER: Player is still in team selection!");
 			GetPlayerName(targetplayer,tname,sizeof(tname));
-			SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Player %s(%d) is in posession of $%d at this moment",tname,targetplayer,GetPlayerMoney(targetplayer));
+			SendClientMessage(playerid, COLOR_WHITE, "SERVER: Player %s(%d) is in posession of $%d at this moment", tname, targetplayer, GetPlayerMoney(targetplayer));
 		}	
 	}
 	if(strcmp(cmd, "/spawn", true) == 0)
@@ -3508,7 +3464,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	{
 		if(PBomb[playerid] == 1 && GetPlayerInterior(playerid) == 0 && !IsPlayerInAnyVehicle(playerid))
 		{
-			ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, 1, 0, 0, 1, 1);
+			ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, true, false, false, true, 1);
 			PBombID[playerid]=1;
 			PBomb[playerid]=-1;
 			GetPlayerPos(playerid,pX[playerid],pY[playerid],pZ[playerid]);
@@ -3547,7 +3503,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				PlayerInfo[playerid][pBeds]=GetPlayerScore(playerid);
 				if(BedStates[bedteamid] != 0)
 				{
-					SendClientMessageEx(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team %s ",GetTeamColorTag(bedteamid));
+					SendClientMessage(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team %s ", GetTeamColorTag(bedteamid));
 					BedStates[bedteamid] = 0;
 				}
 				PlayerInfo[playerid][pBeds]+=1;	
@@ -3555,7 +3511,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				SetPlayerScore(playerid, GetPlayerScore(playerid) + 1);
 				SendClientMessage(playerid, COLOR_WHITE, "SERVER: Keep Running! Bed Will Blow Up In 5 seconds!");
 				GetPlayerPos(playerid, x1, y1, z1);
-				ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, 1, 0, 0, 1, 1);
+				ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, true, false, false, true, 1);
 				for(new k = 0; k < MAX_PLAYERS; k++)
 				{
 					PlayerPlaySound(k,7416,x1,y1,z1);
@@ -3644,7 +3600,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		{
 			if(IsPlayerAdmin(i))
 			{
-				SendClientMessageEx(i,COLOR_WHITE,str);	
+				SendClientMessage(i, COLOR_WHITE, str);	
 			}
 		}
 		return 1;
@@ -3664,7 +3620,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			SetTimerEx("BlowUpThisBed", bombtimer, false,"i",bedteamid);
 			if(BedStates[bedteamid] != 0)
 			{
-				SendClientMessageEx(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team %s ",GetTeamColorTag(bedteamid));
+				SendClientMessage(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team %s ", GetTeamColorTag(bedteamid));
 				BedStates[bedteamid] = 0;
 			}
 			PlayerInfo[playerid][pBeds]+=1;	
@@ -3672,7 +3628,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			SetPlayerScore(playerid, GetPlayerScore(playerid) + 1);
 			SendClientMessage(playerid, COLOR_WHITE, "SERVER: Keep Running! Bed Will Blow Up In 5 seconds!");
 			GetPlayerPos(playerid, x1, y1, z1);
-			ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, 1, 0, 0, 1, 1);
+			ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, true, false, false, true, 1);
 			for(new k = 0; k < MAX_PLAYERS; k++)
 			{
 				PlayerPlaySound(k,7416,x1,y1,z1);
@@ -3724,7 +3680,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 			PlayerInfo[playerid][pBeds]=GetPlayerScore(playerid);
 			if(BedStates[bedteamid] != 0)
 			{
-				SendClientMessageEx(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team %s ",GetTeamColorTag(bedteamid));
+				SendClientMessage(playerid, COLOR_WHITE, "SERVER: You are blowing up the bed of Team %s ", GetTeamColorTag(bedteamid));
 				BedStates[bedteamid] = 0;
 			}
 			PlayerInfo[playerid][pBeds]+=1;	
@@ -3732,7 +3688,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 			SetPlayerScore(playerid, GetPlayerScore(playerid) + 1);
 			SendClientMessage(playerid, COLOR_WHITE, "SERVER: Keep Running! Bed Will Blow Up In 5 seconds!");
 			GetPlayerPos(playerid, x1, y1, z1);
-			ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, 1, 0, 0, 1, 1);
+			ApplyAnimation(playerid, "BOMBER", "BOM_Plant_Loop", 4.0, true, false, false, true, 1);
 			for(new k = 0; k < MAX_PLAYERS; k++)
 			{
 				PlayerPlaySound(k,7416,x1,y1,z1);
@@ -3820,7 +3776,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 
 	if(BedStates[gPlayerTeamSelection[playerid]] == 0)
 	{
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.",GetTeamColorTag(playerid));
+		SendClientMessage(playerid, COLOR_WHITE, "SERVER: Unable to respawn. The bed of team %s {FFFFFF}already has been destroyed.", GetTeamColorTag(playerid));
 		SendClientMessage(playerid,COLOR_WHITE,"SERVER: Entering spectator mode..");
 		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
 		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
@@ -3875,7 +3831,7 @@ ClassSel_SetupSelectedTeam(playerid)
 		gPlayerTeamSelection[playerid] = TEAM_SPECTATOR;
 		SpecRandomPlayer(playerid);
 		new Float:time = totaltime / 60;
-		SendClientMessageEx(playerid,COLOR_WHITE,"SERVER: Game has started %d minute(s) ago so you are spectating now.",time);
+		SendClientMessage(playerid, COLOR_WHITE, "SERVER: Game has started %d minute(s) ago so you are spectating now.", time);
 	}
 	if(gPlayerTeamSelection[playerid] == -1) {
 		gPlayerTeamSelection[playerid] = FIRST_TEAM;
@@ -4037,15 +3993,6 @@ public BlowUpThisBed(teamid)
 
 	}
 }
-stock GetVehicleDriver(vid)
-{
-	for(new i; i < GetMaxPlayers(); i++) 
-	{
-		if(!IsPlayerConnected(i)) continue;
-		if(GetPlayerVehicleID(i) == vid && GetPlayerSeat(playerid) == 0) return i;
-	}
-	return INVALID_PLAYER_ID;
-}
 stock RespawnAllVehicles()
 {
 	for(new i = GetVehiclePoolSize(); i > 0; i--)
@@ -4134,9 +4081,9 @@ public OnPlayerSpawn(playerid)
 
 	new randSpawn = 0;
 
-	if(!GameHasStarted) SetPlayerInvulnerable(playerid,1);
+	if(!GameHasStarted) SetPlayerInvulnerable(playerid, true);
 	SetPlayerVirtualWorld(playerid,0);
-	TogglePlayerClock(playerid,0);
+	TogglePlayerClock(playerid, false);
 	ResetPlayerMoney(playerid);
 	PlayerInfo[playerid][pSpawned] = 1;
 	
@@ -4402,7 +4349,7 @@ ClassSel_InitTextDraws()
 	// Init our observer helper text display
 	txtClassSelHelper = TextDrawCreate(10.0, 415.0,
 	" Press ~b~~k~~GO_LEFT~ ~w~or ~b~~k~~GO_RIGHT~ ~w~to switch teams.~n~ Press ~y~~k~~PED_FIREWEAPON~ ~y~to select.");
-	TextDrawUseBox(txtClassSelHelper, 1);
+	TextDrawUseBox(txtClassSelHelper, true);
 	TextDrawBoxColor(txtClassSelHelper,0x22222266);
 	TextDrawLetterSize(txtClassSelHelper,0.3,1.0);
 	TextDrawTextSize(txtClassSelHelper,400.0,40.0);
