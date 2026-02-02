@@ -31,7 +31,7 @@
 #include <md-sort>
 
 #define MYSQL_HOST        "mariadb.intranet.druschke.network" // Change this to your MySQL Remote IP or "localhost".
-#define MYSQL_USER        "server" // Change this to your MySQL Database username.
+#define MYSQL_USER        "samp" // Change this to your MySQL Database username.
 #define MYSQL_PASS        "ylw5dchQKpMNLSuxc4uVYHrCu51nSfXF" // Change this to your MySQL Database password.
 #define MYSQL_DATABASE    "samp" // Change this to your MySQL Database name.
 
@@ -464,9 +464,7 @@ public OnGameModeInit()
 	{
 		print("I couldn't connect to the MySQL server, closing."); // Printing a message to the log.
 		
-		sleep(5);
 
-		SendRconCommand("exit"); // Sending console command to shut down server.
 		return 1;
 	}
 
