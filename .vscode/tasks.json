@@ -1,0 +1,45 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "build-normal",
+			"type": "shell",
+			"command": "pawncc",
+			"runOptions": {
+				"instanceLimit": 1,
+			},
+			"args": [
+				"${file}",
+				"-Dgamemodes",
+				"'-;+'",
+				"'-(+'",
+				"'-d3'",
+        "'-Z'",
+				"'-i/home/chairman/Projects/LastBedStanding/qawno/include'"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"isBackground": false,
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			},
+			"problemMatcher": {
+				"owner": "pawn",
+				"fileLocation": [
+					"relative",
+					"${workspaceRoot}"
+				],
+				"pattern": {
+					"regexp": "^(.*?)\\(([0-9]*)[- 0-9]*\\) \\: (fatal error|error|warning) [0-9]*\\: (.*)$",
+					"file": 1,
+					"location": 2,
+					"severity": 3,
+					"message": 4
+				}
+			}
+		}
+	],
+}

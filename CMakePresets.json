@@ -1,0 +1,24 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "linux-x86",
+      "displayName": "Linux 32-bit (-m32)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_FLAGS": "-m32",
+        "CMAKE_CXX_FLAGS": "-m32",
+        "CMAKE_SHARED_LINKER_FLAGS": "-m32"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-x86",
+      "configurePreset": "linux-x86",
+      "jobs": 0
+    }
+  ]
+}

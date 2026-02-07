@@ -1,0 +1,20 @@
+# log-config.yml
+version: 1
+
+loggers:
+  default:
+    level: trace
+    sinks:
+      - console
+      - file
+
+sinks:
+  console:
+    type: console
+    format: "[%Y-%m-%d %H:%M:%S] [%^%l%$] %v"
+
+  file:
+    type: file
+    path: "mysql.log"
+    format: "[%Y-%m-%d %H:%M:%S] [%l] %v"
+    truncate: false

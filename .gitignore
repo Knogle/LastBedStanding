@@ -1,0 +1,91 @@
+############################
+# OS / Editor / IDE
+############################
+.DS_Store
+Thumbs.db
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+.idea/
+*.swp
+*.swo
+*~
+
+############################
+# Build / CMake
+############################
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+*.ninja
+.ninja_*
+CMakeUserPresets.json
+
+############################
+# Compiler output
+############################
+*.o
+*.obj
+*.a
+*.lib
+*.pdb
+*.d
+*.dSYM/
+
+############################
+# Pawn build output
+############################
+*.amx
+*.lst
+
+############################
+# Binaries (do not ship)
+############################
+*.so
+*.dll
+*.dylib
+omp-server
+
+############################
+# Logs / runtime
+############################
+logs/
+*.log
+log.txt
+
+scriptfiles/YSI/temp/
+scriptfiles/**/temp/
+scriptfiles/**/cache/
+scriptfiles/**/crash*
+scriptfiles/**/crashdumps/
+
+############################
+# Vendor includes (ignore) – keep omp_lbs.inc only
+############################
+
+# ignore everything in qawno/include ...
+qawno/include/**
+
+# ...but allow the directory itself so a file inside can be unignored
+!qawno/include/
+
+# keep exactly this file (both spellings just in case)
+!qawno/include/omp_lbs.inc
+!qawno/include/omp-lbs.inc
+
+# ignore the rest of the vendor include trees entirely
+qawno/includes/
+pawno/include/
+pawno/includes/
+
+############################
+# Local copies / accidental stuff
+############################
+/home/chairman/Projects/LastBedStanding/

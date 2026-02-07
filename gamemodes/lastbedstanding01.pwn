@@ -25,6 +25,7 @@
 #define SAMP_COMPAT
 
 #include <open.mp>
+#include <omp_lbs>
 #include <sscanf2>
 #include <YSI_Storage/y_ini.inc>
 #include <a_mysql>
@@ -171,17 +172,23 @@ forward FinishedGame();
 forward LockAllVehicles();
 forward UnlockAllVehicles();
 forward SetMapType(maptype);
+forward GMXFallback();
+forward bool:IsTeamEliminated(teamid);
+forward GetSurvivingTeamCount();
 
 
 //----------------------------------------------------------
 new GameHasStarted;
 new GameHasFinished;
 new CountDownTimer2;
+new GMXRetryPending;
 new Warppowder[MAX_PLAYERS];
 new PSkill[MAX_PLAYERS];
 new PBomb[MAX_PLAYERS];
 new LastMoney[MAX_PLAYERS];
 new PStealth[MAX_PLAYERS];
+new bool:DebugMode;
+new bool:ForceStartPending;
 new Float:SpecX[MAX_PLAYERS], Float:SpecY[MAX_PLAYERS], Float:SpecZ[MAX_PLAYERS], vWorld[MAX_PLAYERS], Inter[MAX_PLAYERS];
 new IsSpecing[MAX_PLAYERS], Name[MAX_PLAYER_NAME], IsBeingSpeced[MAX_PLAYERS],spectatorid[MAX_PLAYERS];
 new Float:pX[MAX_PLAYERS];
@@ -207,6 +214,8 @@ new bombtimer=5000;// time in ms to blow up closest bed
 new MoneyDropTimer=2500;// Time to generate new moneypickups
 new Shop_Counter;
 new CountDownVar;
+new CountDownTimer;
+new CountDownVarBlowUp = 4;
 new AFK_SYS[MAX_PLAYERS];
 
 
@@ -255,10 +264,8 @@ new moneyval;
 new maxmoney;
 new Float:x1, Float:y1, Float:z1;
 new running;
-new CountDownVarBlowUp = 4;
 new WarpVar[MAX_PLAYERS];
 new WarpTimer;
-new CountDownTimer;
 new hour, minute;
 //--------------------------------------------------------------
 
@@ -447,6 +454,16 @@ public OnGameModeInit()
 	{
 		BedArray[r]=CreateObject(1801,beds[r][0],beds[r][1],beds[r][2],0.0000000,0.0000000,0.0000000); //object(swank_bed_4) (1)
 	}
+	CountDownVar = 60;
+	CountDownVarBlowUp = 4;
+	GameHasStarted = 0;
+	GameHasFinished = 0;
+	GMXRetryPending = 0;
+	DebugMode = false;
+	ForceStartPending = false;
+	totaltime = 0;
+	KillTimer(CountDownTimer);
+	KillTimer(CountDownTimer2);
 	
 	
 	
@@ -676,8 +693,25 @@ public OnGameModeInit()
 	}
 
 
-	SetTimer("TEAM_MONEY", MoneyDropTimer, true);
-	SetTimer("MONEY_MAIN", 1000, true);
+	// --- omp-lbs component: money spawns + match state -----------------
+	// Disable old Pawn-based auto money timers (handled by component now)
+	// SetTimer("TEAM_MONEY", MoneyDropTimer, true);
+	// SetTimer("MONEY_MAIN", 1000, true);
+
+	LBS_Bind(TEAMSIZE);
+	LBS_ConfigMoney(1212, 19, MoneyVal, MoneyDropTimer, 1000);
+	// Register the same spawn ranges you previously used in TEAM_MONEY / MONEY_MAIN.
+	for (new m = 0; m < sizeof(MoneySpawns) - 1; m++)
+	{
+		LBS_AddMoneySpawn(MoneySpawns[m][0], MoneySpawns[m][1], MoneySpawns[m][2], MoneySpawns[m][3], MoneySpawns[m][4], MoneySpawns[m][5], 0, false);
+	}
+	// The last MoneySpawns entry is the "main" range.
+	LBS_AddMoneySpawn(MoneySpawns[sizeof(MoneySpawns) - 1][0], MoneySpawns[sizeof(MoneySpawns) - 1][1],
+					 MoneySpawns[sizeof(MoneySpawns) - 1][2], MoneySpawns[sizeof(MoneySpawns) - 1][3],
+					 MoneySpawns[sizeof(MoneySpawns) - 1][4], MoneySpawns[sizeof(MoneySpawns) - 1][5], 0, true);
+	// Drive the component update loop.
+	SetTimer("LBS_Tick", 250, true);
+	// -------------------------------------------------------------------
 	
 
 
@@ -804,7 +838,8 @@ LockAllVehicles()
 {
 	for(new i;i<MAX_VEHICLES;i++)
 	{
-		SetVehicleParamsEx(i,1, 0, 0, 1, 0, 0, 0);
+		// lock vehicles and keep engines off during lobby/warmup
+		SetVehicleParamsEx(i,0, 0, 0, 1, 0, 0, 0);
 	}
 	return 1;
 }
@@ -812,7 +847,8 @@ UnlockAllVehicles()
 {
 	for(new i;i<MAX_VEHICLES;i++)
 	{
-		SetVehicleParamsEx(i,0, 0, 0, 0, 0, 0, 0);
+		// unlock and enable engines once the round starts
+		SetVehicleParamsEx(i,1, 0, 0, 0, 0, 0, 0);
 	}
 	return 1;
 }
@@ -1123,6 +1159,8 @@ stock GenerateRandomPickup(modelid,type,Float:x_max,Float:x_min,Float:y_max,Floa
 FinishedGame()
 {
 	GameHasFinished=1;
+	GameHasStarted=0;
+	CountDownVar = 60;
 	new scoreTable[MAX_PLAYERS][2], counter;
 	for(new i = 0, maxPlayers = GetMaxPlayers(); i < maxPlayers; i++)
 	{
@@ -1167,9 +1205,13 @@ FinishedGame()
 	for(new i;i<MAX_PLAYERS;i++)
 	{
 		ShowPlayerDialog(i, DIALOG_SCOREBOARD, DIALOG_STYLE_MSGBOX, "Scoreboard",scorestring,"OK","");
+		// Stop any residual control while waiting for GMX
+		TogglePlayerControllable(i,false);
 	}
 	SendClientMessageToAll(COLOR_WHITE,"SERVER: Game over! Map is changing. Please standby..");
+	GMXRetryPending = 0;
 	SetTimer("GMX",30000,false);
+	SetTimer("GMXFallback",45000,false);
 	return 1;
 }
 
@@ -1192,10 +1234,18 @@ public TeamRemaining()
 {
 	printf("TeamRemaining called");
 	if(!GameHasStarted) return 0;
-	new remainingTeamID;
-	if(GetActiveTeamCount() < 2)
+	new remainingTeamID = -1;
+	new aliveTeams = GetActiveTeamCount();
+	if(aliveTeams < 2)
 	{
-		
+		// if no team remains, treat as draw
+		if(aliveTeams == 0)
+		{
+			SendClientMessageToAll(COLOR_WHITE, "SERVER: All teams eliminated. No winner this round.");
+			GameHasFinished = 1;
+			FinishedGame();
+			return 1;
+		}
 		for(new i;i<TEAMSIZE;i++)
 		{
 			if(GetTeamPlayerCount(i) > 0)
@@ -1203,11 +1253,6 @@ public TeamRemaining()
 				remainingTeamID=i;
 				break;
 			}
-			else
-			{
-				continue;
-			}
-			
 		}
 	}
 	else
@@ -1230,11 +1275,27 @@ public TeamRemaining()
 	
 }
 
+// Return true if a team has no active players (used for future checks)
+stock bool:IsTeamEliminated(teamid)
+{
+	return GetTeamPlayerCount(teamid) == 0;
+}
+
+stock GetSurvivingTeamCount()
+{
+	new c = 0;
+	for(new i;i<TEAMSIZE;i++)
+	{
+		if(GetTeamPlayerCount(i) > 0) c++;
+	}
+	return c;
+}
+
 public StartGame()
 {
+	if(!CountDownVar) CountDownVar = 60; // ensure countdown starts from a sane default
 	
-	
-	if(GetActiveTeamCount() > 1)//Amount of teams we need to start the game. Only a value greater than 1 makes sense for a deathmatch like mode.
+	if(ForceStartPending || GetActiveTeamCount() > 1)//Amount of teams we need to start the game. Only a value greater than 1 makes sense for a deathmatch like mode unless forced by admin.
 	{
 		CountDownVar--; 
 		new str[128];
@@ -1242,7 +1303,9 @@ public StartGame()
 		{
 			KillTimer(CountDownTimer2);
 			CountDownVar = 59; 
+			GameHasFinished = 0;
 			GameHasStarted =1;
+			ForceStartPending = false;
 			GameTextForAll("~g~ Start!",1000,6);
 			UnlockAllVehicles();
 				
@@ -1335,6 +1398,7 @@ public StartGame()
 	else 
 	{
 		CountDownVar = 61;
+		ForceStartPending = false;
 	}	
 	return 1;
 }
@@ -1348,8 +1412,9 @@ public CountDown()
 		if(CountDownVarBlowUp == 0)
 		{
 			KillTimer(CountDownTimer);
-			CountDownVar = 4;
+			CountDownVarBlowUp = 4;
 			PlayerPlaySound(i,7419,0,0,0);
+			CountDownVar = 60; // reset start countdown placeholder in case of next round
 		}
 		if(CountDownVarBlowUp == 1)
 		{
@@ -1463,22 +1528,29 @@ stock DropPlayerWeaponPickup(weaponid,ammo,Float:x,Float:y,Float:z)
 
 public OnPlayerPickUpPickup(playerid, pickupid)
 {
-	
-	
+	// First give the C++ component a chance to handle its own pickups.
+	new lbs_money = LBS_HandlePickup(playerid, pickupid);
+	if (lbs_money > 0)
+	{
+		if (GameHasStarted == 1) GivePlayerMoney(playerid, lbs_money);
+		DestroyPickup(pickupid);
+		return 1;
+	}
+
 	new index;
 	switch(GetDynamicPickupType(pickupid,index))
 	{
 	case INVALID_PICKUP_TYPE:
 		{
 		}
-	case MONEY_TYPE:
+	/*case MONEY_TYPE:
 		{
 			maxmoney -= 1;
 			if(GameHasStarted == 1) GivePlayerMoney(playerid, MoneyVal);
 			MoneyPickups[index]=-1;
 			quickSort(MoneyPickups,0,sizeof(MoneyPickups)-1);
 			DestroyPickup(pickupid);
-		}
+		}*/
 	case ACTOR_TYPE:
 		{
 			if(GameHasStarted == 1)
@@ -1514,9 +1586,23 @@ stock GetDynamicPickupType(pickupid, &index)
 	return INVALID_PICKUP_TYPE;
 }
 
+
+// --- omp-lbs component glue -----------------------------------------
+public LBS_Tick()
+{
+	LBS_Update(250);
+	return 1;
+}
+
+public LBS_Internal_CreatePickup(modelid, type, Float:x, Float:y, Float:z, virtualworld, bool:isMain)
+{
+	return CreatePickup(modelid, type, x, y, z, virtualworld);
+}
+// -------------------------------------------------------------------
+
 public UpdateTimeAndWeather()
 {
-	
+
 	//Check if all players have left the game because no one can join.
 	if(GetPlayerCount() == 0 && GameHasStarted)
 	{
@@ -1524,7 +1610,7 @@ public UpdateTimeAndWeather()
 	}
 
 	gettime(hour, minute);
-	if(GameHasStarted)
+	if(GameHasStarted && !GameHasFinished)
 	{
 		totaltime = totaltime + 60;
 	}
@@ -1883,6 +1969,7 @@ public OnPlayerConnect(playerid)
 	gPlayerTeamSelection[playerid] = -1;
 	gPlayerHasTeamSelected[playerid] = 0;
 	gPlayerLastTeamSelectionTick[playerid] = GetTickCount();
+	LBS_PlayerConnect(playerid);
 	return 1;
 }
 stock ClassSel_SetupCharSelection(playerid)
@@ -2137,6 +2224,7 @@ stock ClassSel_HandleTeamSelection(playerid)
 
 	if(Keys & KEY_FIRE) {
 		gPlayerHasTeamSelected[playerid] = 1;
+		LBS_PlayerSetTeam(playerid, gPlayerTeamSelection[playerid], true);
 		
 		PlayerTextDrawHide(playerid,TeamText[playerid]);
 		PlayerTextDrawHide(playerid,LocText[playerid]);
@@ -2736,32 +2824,13 @@ public OnPlayerSelectedMenuRow(playerid, row)
 	}
 }
 
-stock GetTeamPlayerCount(teamid)
+stock GetTeamPlayerCount(team)
 {
-	new playercount = 0;
-	for(new i = 0; i < MAX_PLAYERS; i++)
-	{
-		if(!PlayerInfo[i][pSpawned]) continue;
-		if(!gPlayerHasTeamSelected[i]) continue;
-		if(GetPlayerState(i) == PLAYER_STATE_NONE) continue;
-		if(gPlayerTeamSelection[i] != teamid) continue;
-		playercount++;
-	}
-	return playercount;
+	return LBS_TeamAliveCount(team);
 }
 stock GetActiveTeamCount()
 {
-	new i=0,count=0;
-	while(i<TEAMSIZE)
-	{
-		if(GetTeamPlayerCount(i) > 0)
-		{
-			count++;
-		}
-		i++;	
-	}
-	return count;
-	
+	return LBS_ActiveTeamsCount();
 }
 
 
@@ -2778,7 +2847,16 @@ public OnPlayerTakeDamage(playerid, issuerid, Float: amount, weaponid, bodypart)
 public GMX()
 {
 	printf("Total game time: %d",totaltime);
-	SendRconCommand("gmx");	
+	SendRconCommand("gmx"); 
+}
+
+public GMXFallback()
+{
+	// If GMX was issued but the mode did not restart, enforce it again once.
+	if(GMXRetryPending) return 1;
+	GMXRetryPending = 1;
+	SendRconCommand("gmx");
+	return 1;
 }
 
 
@@ -2840,10 +2918,11 @@ public OnPlayerDisconnect(playerid, reason)
 	}
 	if(GetActiveTeamCount() < 2 && !GameHasFinished)
 	{
-		TeamRemaining();
+		SetTimer("TeamRemaining",3000,false);
 	}
 	
 	SendClientMessageToAll(0xAAAAAAAA, string);
+	LBS_PlayerDisconnect(playerid);
 	return 1;
 }
 
@@ -2996,6 +3075,55 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	if(strcmp(cmd, "/help", true) == 0) 
 	{
 		ShowMenuForPlayer(infomenu,playerid);
+		return 1;
+	}
+	if(strcmp(cmd, "/forcestart", true) == 0)
+	{
+		if(!IsPlayerAdmin(playerid)) return 0;
+		if(GameHasStarted) return SendClientMessage(playerid, COLOR_WHITE, "SERVER: A round is already running.");
+		new startIn;
+		if(sscanf(cmdtext[strlen("/forcestart")+1], "i", startIn)) startIn = 3;
+		if(startIn < 0) startIn = 0;
+		if(startIn > 60) startIn = 60;
+		ForceStartPending = true;
+		CountDownVar = startIn + 1; // StartGame will -- before checking
+		new strout[96];
+		format(strout, sizeof(strout), "SERVER: Admin forced round start in %d seconds.", startIn);
+		SendClientMessageToAll(COLOR_YELLOW, strout);
+		return 1;
+	}
+	if(strcmp(cmd, "/debugmode", true) == 0)
+	{
+		if(!IsPlayerAdmin(playerid)) return 0;
+		DebugMode = !DebugMode;
+		SendClientMessage(playerid, COLOR_WHITE, DebugMode ? "SERVER: Debug mode enabled." : "SERVER: Debug mode disabled.");
+		return 1;
+	}
+	if(strcmp(cmd, "/dbg_skipcd", true) == 0)
+	{
+		if(!IsPlayerAdmin(playerid) || !DebugMode) return 0;
+		ForceStartPending = true;
+		CountDownVar = 1;
+		SendClientMessage(playerid, COLOR_WHITE, "SERVER: Countdown skipped, game will start on next tick.");
+		return 1;
+	}
+	if(strcmp(cmd, "/dbg_tp", true) == 0)
+	{
+		if(!IsPlayerAdmin(playerid) || !DebugMode) return 0;
+		new Float:x, Float:y, Float:z;
+		if(sscanf(cmdtext[strlen("/dbg_tp")+1], "fff", x, y, z))
+		return SendClientMessage(playerid, COLOR_WHITE, "USAGE: /dbg_tp [x] [y] [z]");
+		SetPlayerPos(playerid, x, y, z);
+		SendClientMessage(playerid, COLOR_WHITE, "SERVER: Teleported.");
+		return 1;
+	}
+	if(strcmp(cmd, "/dbg_pos", true) == 0)
+	{
+		if(!IsPlayerAdmin(playerid) || !DebugMode) return 0;
+		new Float:x, Float:y, Float:z, msg[96];
+		GetPlayerPos(playerid, x, y, z);
+		format(msg, sizeof(msg), "SERVER: Pos X: %.2f Y: %.2f Z: %.2f", x, y, z);
+		SendClientMessage(playerid, COLOR_WHITE, msg);
 		return 1;
 	}
 	if(strcmp(cmd, "/getplayerteam", true) == 0) 
@@ -3703,6 +3831,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 	PlayerInfo[playerid][pDeaths]++;
 	if(killerid != INVALID_PLAYER_ID) PlayerInfo[killerid][pKills]++;
 	ResetPlayerData(playerid);
+	LBS_PlayerDied(playerid);
 	
 	new pname[MAX_PLAYER_NAME];
 	GetPlayerName(playerid, pname, sizeof(pname));
@@ -3784,7 +3913,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 	}
 	if(GetActiveTeamCount() < 2 && GameHasStarted)
 	{
-		SetTimer("TeamRemaining",1000,false);
+		SetTimer("TeamRemaining",3000,false); // allow short respawn window before ending
 		/*Debug only
 		printf("Timer set");
 		printf("Active Team Count: %d",GetActiveTeamCount());
@@ -3988,6 +4117,10 @@ public BlowUpThisBed(teamid)
 		SendClientMessageToAll(-1,adstring);
 		GangZoneHideForAll(TEAM_ZONE[teamid]);
 		DestroyObject(BedArray[teamid]);//Destroy/Remove the bed of this team after blowing up
+		if(GetActiveTeamCount() < 2 && GameHasStarted)
+		{
+			SetTimer("TeamRemaining",2000,false);
+		}
 
 	}
 }
@@ -4084,6 +4217,7 @@ public OnPlayerSpawn(playerid)
 	TogglePlayerClock(playerid, false);
 	ResetPlayerMoney(playerid);
 	PlayerInfo[playerid][pSpawned] = 1;
+	LBS_PlayerSpawned(playerid);
 	
 	switch(gPlayerTeamSelection[playerid])
 	{
