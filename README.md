@@ -1,53 +1,70 @@
 # Last Bed Standing
 
-Last Bed Standing is a **SA-MP/open.mp team deathmatch gamemode** inspired by Minecraft Bedwars. Teams spawn at their bases, gather money pickups, buy gear from a shop NPC, and fight to destroy enemy beds. Once a team’s bed is gone, its players can no longer respawn—so the final surviving team wins. 【F:gamemodes/lastbedstanding01.pwn†L3-L7】【F:gamemodes/lastbedstanding01.pwn†L2190-L2194】
+Last Bed Standing is a **SA-MP/open.mp team deathmatch gamemode** inspired by Minecraft Bedwars. Teams spawn at their bases, gather money pickups, buy gear from a shop NPC, and fight to destroy enemy beds. Once a team’s bed is gone, its players can no longer respawn, so the final surviving team wins.
 
 ## Core Gameplay Loop
 
-1. **Pick a team** in the class selection scene. 【F:gamemodes/lastbedstanding01.pwn†L4344-L4357】
-2. **Gather money** from team money spawners placed around the map. 【F:pawno/includes/bone_county.pwn†L61-L66】
-3. **Buy equipment** at the shop NPC (weapons, skills, stealth kit, bomb, warp kit, helmet). 【F:gamemodes/lastbedstanding01.pwn†L551-L559】
-4. **Attack enemy bases** and blow up their bed using `/blowup` (or by placing and detonating a bomb). 【F:gamemodes/lastbedstanding01.pwn†L2192-L2194】【F:gamemodes/lastbedstanding01.pwn†L3461-L3499】
-5. **Finish the remaining players**—once a bed is destroyed, that team can’t respawn. 【F:gamemodes/lastbedstanding01.pwn†L3775-L3783】【F:gamemodes/lastbedstanding01.pwn†L3975-L3986】
+1. **Pick a team** in the class selection scene.
+2. **Gather money** from team money spawners placed around the map.
+3. **Buy equipment** at the shop NPC (weapons, skills, stealth kit, bomb, warp kit, helmet).
+4. **Attack enemy bases** and blow up their bed using `/blowup` (or by placing and detonating a bomb).
+5. **Finish the remaining players**: once a bed is destroyed, that team cannot respawn.
 
 ## Key Features
 
-- **Team-based bed destruction** with sudden-death after a bed blows up (no respawn). 【F:gamemodes/lastbedstanding01.pwn†L3975-L3986】
-- **Shop system** with weapons, fighting styles, stealth kit, bomb, warp kit, and helmet items. 【F:gamemodes/lastbedstanding01.pwn†L551-L559】
-- **Money pickup economy** fueled by configurable money spawn zones. 【F:pawno/includes/bone_county.pwn†L61-L66】
-- **Bomb mechanics**: buy a bomb, place it with `/dropbomb`, and detonate a bed. 【F:gamemodes/lastbedstanding01.pwn†L2670-L2674】【F:gamemodes/lastbedstanding01.pwn†L3461-L3499】
-- **Stealth kit** and **warp kit** purchases with dedicated commands. 【F:gamemodes/lastbedstanding01.pwn†L2654-L2694】【F:gamemodes/lastbedstanding01.pwn†L3010-L3112】
-- **Auto-start countdown & team victory logic** to trigger and finish rounds. 【F:gamemodes/lastbedstanding01.pwn†L1220-L1333】
-- **Random weather rotation** with periodic updates. 【F:gamemodes/lastbedstanding01.pwn†L521-L802】
-- **Persistent stats** for kills, deaths, beds blown, and bombs detonated. 【F:gamemodes/lastbedstanding01.pwn†L2961-L2974】
-- **Login/Register system** backed by MySQL. 【F:gamemodes/lastbedstanding01.pwn†L27-L36】
+- **Team-based bed destruction** with sudden-death after a bed blows up (no respawn).
+- **Shop system** with weapons, fighting styles, stealth kit, bomb, warp kit, and helmet items.
+- **Money pickup economy** fueled by configurable money spawn zones.
+- **Bomb mechanics**: buy a bomb, place it with `/dropbomb`, and detonate a bed.
+- **Stealth kit** and **warp kit** purchases with dedicated commands.
+- **Auto-start countdown and team victory logic** to start and finish rounds.
+- **Random weather rotation** with periodic updates.
+- **Persistent stats** for kills, deaths, beds blown, and bombs detonated.
+- **Login/Register system** backed by MySQL.
+
+## C++ Component and Pawn Interaction
+
+The project uses a hybrid model:
+
+- **C++ component (`main.cpp`)** owns match phase state, alive-team evaluation, and timed money spawn generation.
+- **Pawn gamemode (`gamemodes/lastbedstanding01.pwn`)** keeps gameplay/UI flow, menus, commands, and SA-MP callbacks.
+
+Data flow between both layers:
+
+1. During gamemode init, Pawn binds and configures the component (`LBS_Bind`, `LBS_ConfigMoney`, `LBS_AddMoneySpawn`).
+2. Pawn runs a timer (`LBS_Tick`) and calls `LBS_Update(250)` every 250 ms to advance the C++ state machine.
+3. When C++ wants to spawn a pickup, it calls Pawn public `LBS_Internal_CreatePickup(...)`; Pawn performs `CreatePickup(...)` and returns the pickup id.
+4. On pickup, Pawn first delegates with `LBS_HandlePickup(playerid, pickupid)`. If the id belongs to component-managed money, Pawn pays the player and destroys the pickup.
+5. Pawn forwards player lifecycle events into C++ (`LBS_PlayerConnect`, `LBS_PlayerSetTeam`, `LBS_PlayerSpawned`, `LBS_PlayerDied`, `LBS_PlayerDisconnect`) so team-alive and winner logic stays consistent.
+
+Optional callbacks (`LBS_OnPhaseChange`, `LBS_OnCountdownTick`, `LBS_OnMatchStart`, `LBS_OnMatchEnd`) are exposed by the include and can be implemented in Pawn when custom HUD/messages are needed.
 
 ## Commands (Player-Facing)
 
-- `/blowup` — blow up an enemy bed when close enough. 【F:gamemodes/lastbedstanding01.pwn†L2192-L2194】
-- `/dropbomb` — place a bomb (requires purchased bomb). 【F:gamemodes/lastbedstanding01.pwn†L3461-L3479】
-- `/detonate` — detonate a placed bomb. 【F:gamemodes/lastbedstanding01.pwn†L3481-L3491】
-- `/stealth` — activate stealth kit. 【F:gamemodes/lastbedstanding01.pwn†L3010-L3021】
-- `/warp` — warp back to your base (warp kit). 【F:gamemodes/lastbedstanding01.pwn†L3099-L3112】
-- `/dropmoney` — drop money to the ground. 【F:gamemodes/lastbedstanding01.pwn†L2215-L2216】
+- `/blowup` - blow up an enemy bed when close enough.
+- `/dropbomb` - place a bomb (requires purchased bomb).
+- `/detonate` - detonate a placed bomb.
+- `/stealth` - activate stealth kit.
+- `/warp` - warp back to your base (warp kit).
+- `/dropmoney` - drop money to the ground.
 
 ## Maps & Customization
 
-Map data is defined in the include files under `pawno/includes/`. Each map defines team count, colors, bed locations, team spawns, shop NPCs, and money spawn zones. Adjust the constants and arrays to build new maps or rebalance existing ones. 【F:pawno/includes/bone_county.pwn†L2-L90】【F:pawno/includes/bone_county.pwn†L92-L119】
+Map data is defined in the include files under `pawno/includes/`. Each map defines team count, colors, bed locations, team spawns, shop NPCs, and money spawn zones. Adjust the constants and arrays to build new maps or rebalance existing ones.
 
 Current map presets include:
 
-- `bone_county.pwn` (3 teams) 【F:pawno/includes/bone_county.pwn†L32-L37】
-- `chilliad.pwn` (4 teams) 【F:pawno/includes/chilliad.pwn†L38-L44】
-- `countryside_1.pwn` (4 teams) 【F:pawno/includes/countryside_1.pwn†L42-L49】
-- `countryside_2.pwn` (6 teams) 【F:pawno/includes/countryside_2.pwn†L51-L60】
-- `green_palms.pwn` (3 teams) 【F:pawno/includes/green_palms.pwn†L35-L41】
+- `bone_county.pwn` (3 teams)
+- `chilliad.pwn` (4 teams)
+- `countryside_1.pwn` (4 teams)
+- `countryside_2.pwn` (6 teams)
+- `green_palms.pwn` (3 teams)
 
 ## Configuration Notes
 
-- **MySQL credentials** are configured at the top of the gamemode file. Update them before deployment. 【F:gamemodes/lastbedstanding01.pwn†L33-L36】
-- **Map selection** is controlled via the `MAPTYPE` define. 【F:gamemodes/lastbedstanding01.pwn†L46-L58】
+- **MySQL credentials** are configured at the top of the gamemode file. Update them before deployment.
+- **Map selection** is controlled via the `MAPTYPE` define.
 
 ## License
 
-This project is released under the GNU GPLv3. 【F:gamemodes/lastbedstanding01.pwn†L3-L22】
+This project is released under the GNU GPLv3.
