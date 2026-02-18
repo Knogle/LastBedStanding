@@ -44,18 +44,18 @@
 
 new MySQL: Database, Corrupt_Check[MAX_PLAYERS];
 
-enum
-{
-	CHILLIAD,
-	SAN_FIERRO_DOCKS,
-	BONE_COUNTY,
-	MAD_DOGGS,
-	COUNTRYSIDE_1,
-	GREEN_PALMS,
-	COUNTRYSIDE_2
-};
+#define MAX_MAP_TEAMS 6
+#define MAX_MAP_STR 64
+#define MAX_MAP_ACTORS 16
+#define MAX_MAP_INFO_PICKUPS 16
+#define MAX_MAP_MONEY_SPAWNS 16
+#define MAX_MAP_TEAM_SPAWNS 32
+#define MAX_MAP_VEHICLES 2048
+#define MAX_MAP_OBJECTS 2048
 
-#define MAPTYPE BONE_COUNTY
+new gMapTeamSize = 2;
+new gCurrentMapId = -1;
+new gCurrentMapKey[MAX_MAP_STR];
 
 enum pInfo
 {
@@ -171,10 +171,14 @@ forward TeamRemaining();
 forward FinishedGame();
 forward LockAllVehicles();
 forward UnlockAllVehicles();
-forward SetMapType(maptype);
+forward SetMapType(mapid);
+forward bool:MapCycleEnsureCurrentMode();
+forward MapCycleSetNextModeAndChange();
 forward GMXFallback();
 forward bool:IsTeamEliminated(teamid);
 forward GetSurvivingTeamCount();
+forward bool:LoadMapRuntimeData(mapid);
+forward LoadRuntimeMapAssets();
 
 
 //----------------------------------------------------------
@@ -268,34 +272,92 @@ new WarpVar[MAX_PLAYERS];
 new WarpTimer;
 new hour, minute;
 //--------------------------------------------------------------
+new gTeamColorTags[MAX_MAP_TEAMS][32];
+new gTeamNameTags[MAX_MAP_TEAMS][32];
+new gTeamLocations[MAX_MAP_TEAMS][MAX_MAP_STR];
+new gTeamInteriors[MAX_MAP_TEAMS];
+new gTeamSelInteriors[MAX_MAP_TEAMS];
+new gTeamColors[MAX_MAP_TEAMS];
+new gTeamColorsTD[MAX_MAP_TEAMS];
 
+new Float:Center[1][3];
+new gCenterCount;
+new Float:GlobalActors[MAX_MAP_ACTORS][4];
+new gGlobalActorsCount;
+new Float:GlobalZones[MAX_MAP_TEAMS][4];
+new gGlobalZonesCount;
+new Float:PlayerInfoPickups[MAX_MAP_INFO_PICKUPS][3];
+new gPlayerInfoPickupsCount;
+new Float:MoneySpawns[MAX_MAP_MONEY_SPAWNS][6];
+new gMoneySpawnsCount;
+new Float:MAP_WORLDBOUNDS[1][4];
+new gMapWorldBoundsCount;
+new Float:ClassSel_SetupTeamTEAM_POS[MAX_MAP_TEAMS][3];
+new Float:ClassSel_SetupTeamTEAM_LOOK_AT[MAX_MAP_TEAMS][3];
+new Float:beds[MAX_MAP_TEAMS][3];
 
-#if defined MAPTYPE
-#if MAPTYPE==CHILLIAD
-#include <chilliad.pwn>
-#elseif MAPTYPE==BONE_COUNTY
-#include <bone_county.pwn>
-#elseif MAPTYPE==SAN_FIERRO_DOCKS
-#include <../../gamemodes/san_fierro_docks.pwn>
-#elseif MAPTYPE==MAD_DOGGS
-#include <mad_doggs.pwn>
-#elseif MAPTYPE==GREEN_PALMS
-#include <green_palms.pwn>
-#elseif MAPTYPE==COUNTRYSIDE_1
-#include <countryside_1.pwn>
-#elseif MAPTYPE==COUNTRYSIDE_2
-#include <countryside_2.pwn>
-#endif
-#endif
+new Float:gSpawnsTeam_TEAM_ONE[MAX_MAP_TEAM_SPAWNS][4];
+new Float:gSpawnsTeam_TEAM_TWO[MAX_MAP_TEAM_SPAWNS][4];
+new Float:gSpawnsTeam_TEAM_THREE[MAX_MAP_TEAM_SPAWNS][4];
+new Float:gSpawnsTeam_TEAM_FOUR[MAX_MAP_TEAM_SPAWNS][4];
+new Float:gSpawnsTeam_TEAM_FIVE[MAX_MAP_TEAM_SPAWNS][4];
+new Float:gSpawnsTeam_TEAM_SIX[MAX_MAP_TEAM_SPAWNS][4];
+new gSpawnsTeam_TEAM_ONE_Count;
+new gSpawnsTeam_TEAM_TWO_Count;
+new gSpawnsTeam_TEAM_THREE_Count;
+new gSpawnsTeam_TEAM_FOUR_Count;
+new gSpawnsTeam_TEAM_FIVE_Count;
+new gSpawnsTeam_TEAM_SIX_Count;
 
-#if defined TEAMSIZE
-#if TEAMSIZE > 6
-#error Amount of Teams is limited to 6!
-#endif
-#if TEAMSIZE < 2
-#error Minimum Amount of Teams is limited to 2!
-#endif
-#endif
+new Float:MapVehicles[MAX_MAP_VEHICLES][7];
+new gMapVehiclesCount;
+new Float:MapObjects[MAX_MAP_OBJECTS][8];
+new gMapObjectsCount;
+
+#define TEAMSIZE MAX_MAP_TEAMS
+#define FIRST_TEAM_COLOR_TAG gTeamColorTags[0]
+#define SECOND_TEAM_COLOR_TAG gTeamColorTags[1]
+#define THIRD_TEAM_COLOR_TAG gTeamColorTags[2]
+#define FOURTH_TEAM_COLOR_TAG gTeamColorTags[3]
+#define FIFTH_TEAM_COLOR_TAG gTeamColorTags[4]
+#define SIXTH_TEAM_COLOR_TAG gTeamColorTags[5]
+#define FIRST_TEAM_NAME_TAG gTeamNameTags[0]
+#define SECOND_TEAM_NAME_TAG gTeamNameTags[1]
+#define THIRD_TEAM_NAME_TAG gTeamNameTags[2]
+#define FOURTH_TEAM_NAME_TAG gTeamNameTags[3]
+#define FIFTH_TEAM_NAME_TAG gTeamNameTags[4]
+#define SIXTH_TEAM_NAME_TAG gTeamNameTags[5]
+#define TEAM_ONE_SEL_INTERIOR gTeamSelInteriors[0]
+#define TEAM_TWO_SEL_INTERIOR gTeamSelInteriors[1]
+#define TEAM_THREE_SEL_INTERIOR gTeamSelInteriors[2]
+#define TEAM_FOUR_SEL_INTERIOR gTeamSelInteriors[3]
+#define TEAM_FIVE_SEL_INTERIOR gTeamSelInteriors[4]
+#define TEAM_SIX_SEL_INTERIOR gTeamSelInteriors[5]
+#define TEAM_ONE_INTERIOR gTeamInteriors[0]
+#define TEAM_TWO_INTERIOR gTeamInteriors[1]
+#define TEAM_THREE_INTERIOR gTeamInteriors[2]
+#define TEAM_FOUR_INTERIOR gTeamInteriors[3]
+#define TEAM_FIVE_INTERIOR gTeamInteriors[4]
+#define TEAM_SIX_INTERIOR gTeamInteriors[5]
+#define COLOR_TEAM_ONE gTeamColors[0]
+#define COLOR_TEAM_TWO gTeamColors[1]
+#define COLOR_TEAM_THREE gTeamColors[2]
+#define COLOR_TEAM_FOUR gTeamColors[3]
+#define COLOR_TEAM_FIVE gTeamColors[4]
+#define COLOR_TEAM_SIX gTeamColors[5]
+#define COLOR_TEAM_ONE_TD gTeamColorsTD[0]
+#define COLOR_TEAM_TWO_TD gTeamColorsTD[1]
+#define COLOR_TEAM_THREE_TD gTeamColorsTD[2]
+#define COLOR_TEAM_FOUR_TD gTeamColorsTD[3]
+#define COLOR_TEAM_FIVE_TD gTeamColorsTD[4]
+#define COLOR_TEAM_SIX_TD gTeamColorsTD[5]
+#define FIRST_TEAM_LOCATION gTeamLocations[0]
+#define SECOND_TEAM_LOCATION gTeamLocations[1]
+#define THIRD_TEAM_LOCATION gTeamLocations[2]
+#define FOURTH_TEAM_LOCATION gTeamLocations[3]
+#define FIFTH_TEAM_LOCATION gTeamLocations[4]
+#define SIXTH_TEAM_LOCATION gTeamLocations[5]
+
 #if defined BEDSSYSTEM
 #if BEDSSYSTEM > 1
 #error Scoresystem val must be 0 or 1 (false true)
@@ -315,12 +377,12 @@ new hour, minute;
 #define COLOR_TEAM_SIX_STEALTH getInv(COLOR_TEAM_SIX) //Aqua
 
 //Never change these lines below if you don't know what to do
-new ActorPickups[sizeof(GlobalActors)];
-new InfoPickups[sizeof(PlayerInfoPickups)];
+new ActorPickups[MAX_MAP_ACTORS];
+new InfoPickups[MAX_MAP_INFO_PICKUPS];
 new MoneyPickups[MAX_PICKUPS-sizeof(ActorPickups)-sizeof(InfoPickups)-1];
-new BedArray[TEAMSIZE];
-new BedStates[TEAMSIZE];
-new TEAM_ZONE[TEAMSIZE];
+new BedArray[MAX_MAP_TEAMS];
+new BedStates[MAX_MAP_TEAMS];
+new TEAM_ZONE[MAX_MAP_TEAMS];
 //
 
 
@@ -399,13 +461,6 @@ public OnPlayerDataSave(playerid)
 }
 public OnGameModeExit()
 {
-
-	// Select a random value from the enum (0-6)
-	new randomMap = random(7); // 7 maps, so index is 0-6
-
-	// Dynamically set the map type based on the random enum value
-	SetMapType(randomMap);
-
 	for(new i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(IsPlayerConnected(i)) // Checking if the players stored in "i" are connected.
@@ -448,9 +503,16 @@ public OnGameModeExit()
 	}*/
 	return 1;
 }
+/// Startup hook. Ref: https://open.mp/docs/scripting/callbacks/OnGameModeInit
 public OnGameModeInit()
 {
-	for(new r;r<TEAMSIZE;r++)//Beginning with Team 0 (FIRST_TEAM) increasing.
+	if(!MapCycleEnsureCurrentMode())
+	{
+		print("Failed to initialize map cycle/runtime map data.");
+		return 1;
+	}
+
+	for(new r; r < gMapTeamSize; r++)//Beginning with Team 0 (FIRST_TEAM) increasing.
 	{
 		BedArray[r]=CreateObject(1801,beds[r][0],beds[r][1],beds[r][2],0.0000000,0.0000000,0.0000000); //object(swank_bed_4) (1)
 	}
@@ -467,7 +529,7 @@ public OnGameModeInit()
 	
 	
 	
-	for(new i;i<TEAMSIZE;i++)
+	for(new i; i < gMapTeamSize; i++)
 	{
 		BedStates[i]=1;
 	}
@@ -491,31 +553,7 @@ public OnGameModeInit()
 	
 	mysql_tquery(Database, "CREATE TABLE IF NOT EXISTS `PLAYERS` (`ID` int(11) NOT NULL AUTO_INCREMENT,`USERNAME` varchar(24) NOT NULL,`PASSWORD` char(65) NOT NULL,`SALT` char(11) NOT NULL,`BEDS` mediumint(7), `KILLS` mediumint(7), `BOMBS` mediumint(7) NOT NULL DEFAULT '0',`DEATHS` mediumint(7) NOT NULL DEFAULT '0', PRIMARY KEY (`ID`), UNIQUE KEY `USERNAME` (`USERNAME`))");
 	CountDownTimer2 = SetTimer("StartGame",1000,true);
-	
-	#if defined MAPTYPE
-	#if MAPTYPE==CHILLIAD
-	#tryinclude <chilliad_vehicles.txt>
-	#tryinclude <chilliad_objects.txt>
-	#elseif MAPTYPE==BONE_COUNTY
-	#tryinclude <bone_vehicles.txt>
-	#tryinclude <bone_objects.txt>
-	#elseif MAPTYPE==MAD_DOGGS
-	#tryinclude <md_vehicles.txt>
-	#tryinclude <md_objects.txt>
-	#elseif MAPTYPE==SAN_FIERRO_DOCKS
-	#tryinclude <sf_vehicles.txt>
-	#tryinclude <sf_objects.txt>
-	#elseif MAPTYPE==GREEN_PALMS
-	#tryinclude <gp_vehicles.txt>
-	#tryinclude <gp_objects.txt>
-	#elseif MAPTYPE==COUNTRYSIDE_1
-	#tryinclude <cs_vehicles.txt>
-	#tryinclude <cs_objects.txt>
-	#elseif MAPTYPE==COUNTRYSIDE_2
-	#tryinclude <cs2_vehicles.txt>
-	#tryinclude <cs2_objects.txt>
-	#endif
-	#endif
+	LoadRuntimeMapAssets();
 
 	
 	
@@ -532,23 +570,25 @@ public OnGameModeInit()
 		InfoPickups[f]=-1;
 	}
 	LockAllVehicles();
-	SendRconCommand("mapname "#MAPTYPE);
+	new mapname_cmd[96];
+	format(mapname_cmd, sizeof(mapname_cmd), "mapname %s", gCurrentMapKey);
+	SendRconCommand(mapname_cmd);
 	SetTimer("@AFK_CHECK",9973,true);
 	SetTimer("RespawnAllVehicles",UnusedVehTimer, true);
 	SetTimer("RandomWeather", 300000, true);
 	
 
-	for(new zone;zone<TEAMSIZE;zone++)//Initialize gang zones / team zones
+	for(new zone; zone < gMapTeamSize; zone++)//Initialize gang zones / team zones
 	{
 		TEAM_ZONE[zone]=GangZoneCreate(GlobalZones[zone][0],GlobalZones[zone][1],GlobalZones[zone][2],GlobalZones[zone][3]);//Create Gangzones
 	}
 	
-	for(new g=0;g<sizeof(GlobalActors);g++)//Initialize shops / actors to buy stuff
+	for(new g = 0; g < gGlobalActorsCount; g++)//Initialize shops / actors to buy stuff
 	{
 		CreateGlobalActor(g+1,274,GlobalActors[g][0],GlobalActors[g][1],GlobalActors[g][2],GlobalActors[g][3],3.0,g);		
 		SetActorInvulnerable(g+1, true);
 	}
-	for(new t=0;t<sizeof(InfoPickups);t++)//Initialize info pickups to get basic information
+	for(new t = 0; t < gPlayerInfoPickupsCount; t++)//Initialize info pickups to get basic information
 	{
 		InfoPickups[t]=CreatePickup(1239,2,PlayerInfoPickups[t][0],PlayerInfoPickups[t][1],PlayerInfoPickups[t][2],0);
 	}
@@ -698,17 +738,21 @@ public OnGameModeInit()
 	// SetTimer("TEAM_MONEY", MoneyDropTimer, true);
 	// SetTimer("MONEY_MAIN", 1000, true);
 
-	LBS_Bind(TEAMSIZE);
+	LBS_Bind(gMapTeamSize);
 	LBS_ConfigMoney(1212, 19, MoneyVal, MoneyDropTimer, 1000);
 	// Register the same spawn ranges you previously used in TEAM_MONEY / MONEY_MAIN.
-	for (new m = 0; m < sizeof(MoneySpawns) - 1; m++)
+	for (new m = 0; m < gMoneySpawnsCount - 1; m++)
 	{
 		LBS_AddMoneySpawn(MoneySpawns[m][0], MoneySpawns[m][1], MoneySpawns[m][2], MoneySpawns[m][3], MoneySpawns[m][4], MoneySpawns[m][5], 0, false);
 	}
 	// The last MoneySpawns entry is the "main" range.
-	LBS_AddMoneySpawn(MoneySpawns[sizeof(MoneySpawns) - 1][0], MoneySpawns[sizeof(MoneySpawns) - 1][1],
-					 MoneySpawns[sizeof(MoneySpawns) - 1][2], MoneySpawns[sizeof(MoneySpawns) - 1][3],
-					 MoneySpawns[sizeof(MoneySpawns) - 1][4], MoneySpawns[sizeof(MoneySpawns) - 1][5], 0, true);
+	if(gMoneySpawnsCount > 0)
+	{
+		new mainSpawn = gMoneySpawnsCount - 1;
+		LBS_AddMoneySpawn(MoneySpawns[mainSpawn][0], MoneySpawns[mainSpawn][1],
+						 MoneySpawns[mainSpawn][2], MoneySpawns[mainSpawn][3],
+						 MoneySpawns[mainSpawn][4], MoneySpawns[mainSpawn][5], 0, true);
+	}
 	// Drive the component update loop.
 	SetTimer("LBS_Tick", 250, true);
 	// -------------------------------------------------------------------
@@ -774,48 +818,236 @@ stock GetXYInFrontOfPlayer(playerid, &Float:x, &Float:y, Float:distance)
 	x += (distance * floatsin(-a, degrees));
 	y += (distance * floatcos(-a, degrees));
 }
-stock SetMapType(maptype)
+stock LoadFloatArray3(mapid, const arrayName[], Float:target[][3], maxRows, &outRows)
 {
-    // Use switch to handle the logic for each map based on the enum
-    switch(maptype)
-    {
-        case CHILLIAD:
-        {
-            printf("Loading Chilliad Map");
-            // Add the specific logic for the Chilliad map here
-        }
-        case SAN_FIERRO_DOCKS:
-        {
-            printf("Loading San Fierro Docks Map");
-            // Add the specific logic for San Fierro Docks here
-        }
-        case BONE_COUNTY:
-        {
-            printf("Loading Bone County Map");
-            // Add the specific logic for Bone County here
-        }
-        case MAD_DOGGS:
-        {
-            printf("Loading Mad Doggs Map");
-            // Add the specific logic for Mad Doggs here
-        }
-        case COUNTRYSIDE_1:
-        {
-            printf("Loading Countryside 1 Map");
-            // Add the specific logic for Countryside 1 here
-        }
-        case GREEN_PALMS:
-        {
-            printf("Loading Green Palms Map");
-            // Add the specific logic for Green Palms here
-        }
-        case COUNTRYSIDE_2:
-        {
-            printf("Loading Countryside 2 Map");
-            // Add the specific logic for Countryside 2 here
-        }
-    }
+	outRows = LBS_MapGetArrayRows(mapid, arrayName);
+	if(outRows > maxRows) outRows = maxRows;
+	if(outRows < 0) outRows = 0;
+	for(new r = 0; r < outRows; r++)
+	{
+		for(new c = 0; c < 3; c++)
+		{
+			target[r][c] = Float:LBS_MapGetArrayValue(mapid, arrayName, r, c);
+		}
+	}
 }
+
+stock LoadFloatArray4(mapid, const arrayName[], Float:target[][4], maxRows, &outRows)
+{
+	outRows = LBS_MapGetArrayRows(mapid, arrayName);
+	if(outRows > maxRows) outRows = maxRows;
+	if(outRows < 0) outRows = 0;
+	for(new r = 0; r < outRows; r++)
+	{
+		for(new c = 0; c < 4; c++)
+		{
+			target[r][c] = Float:LBS_MapGetArrayValue(mapid, arrayName, r, c);
+		}
+	}
+}
+
+stock LoadFloatArray6(mapid, const arrayName[], Float:target[][6], maxRows, &outRows)
+{
+	outRows = LBS_MapGetArrayRows(mapid, arrayName);
+	if(outRows > maxRows) outRows = maxRows;
+	if(outRows < 0) outRows = 0;
+	for(new r = 0; r < outRows; r++)
+	{
+		for(new c = 0; c < 6; c++)
+		{
+			target[r][c] = Float:LBS_MapGetArrayValue(mapid, arrayName, r, c);
+		}
+	}
+}
+
+stock LoadFloatArray7(mapid, const arrayName[], Float:target[][7], maxRows, &outRows)
+{
+	outRows = LBS_MapGetArrayRows(mapid, arrayName);
+	if(outRows > maxRows) outRows = maxRows;
+	if(outRows < 0) outRows = 0;
+	for(new r = 0; r < outRows; r++)
+	{
+		for(new c = 0; c < 7; c++)
+		{
+			target[r][c] = Float:LBS_MapGetArrayValue(mapid, arrayName, r, c);
+		}
+	}
+}
+
+stock LoadFloatArray8(mapid, const arrayName[], Float:target[][8], maxRows, &outRows)
+{
+	outRows = LBS_MapGetArrayRows(mapid, arrayName);
+	if(outRows > maxRows) outRows = maxRows;
+	if(outRows < 0) outRows = 0;
+	for(new r = 0; r < outRows; r++)
+	{
+		for(new c = 0; c < 8; c++)
+		{
+			target[r][c] = Float:LBS_MapGetArrayValue(mapid, arrayName, r, c);
+		}
+	}
+}
+
+stock bool:LoadMapRuntimeData(mapid)
+{
+	new const teamColorTagKeys[MAX_MAP_TEAMS][] =
+	{
+		"FIRST_TEAM_COLOR_TAG", "SECOND_TEAM_COLOR_TAG", "THIRD_TEAM_COLOR_TAG",
+		"FOURTH_TEAM_COLOR_TAG", "FIFTH_TEAM_COLOR_TAG", "SIXTH_TEAM_COLOR_TAG"
+	};
+	new const teamNameTagKeys[MAX_MAP_TEAMS][] =
+	{
+		"FIRST_TEAM_NAME_TAG", "SECOND_TEAM_NAME_TAG", "THIRD_TEAM_NAME_TAG",
+		"FOURTH_TEAM_NAME_TAG", "FIFTH_TEAM_NAME_TAG", "SIXTH_TEAM_NAME_TAG"
+	};
+	new const teamLocationKeys[MAX_MAP_TEAMS][] =
+	{
+		"FIRST_TEAM_LOCATION", "SECOND_TEAM_LOCATION", "THIRD_TEAM_LOCATION",
+		"FOURTH_TEAM_LOCATION", "FIFTH_TEAM_LOCATION", "SIXTH_TEAM_LOCATION"
+	};
+	new const teamInteriorKeys[MAX_MAP_TEAMS][] =
+	{
+		"TEAM_ONE_INTERIOR", "TEAM_TWO_INTERIOR", "TEAM_THREE_INTERIOR",
+		"TEAM_FOUR_INTERIOR", "TEAM_FIVE_INTERIOR", "TEAM_SIX_INTERIOR"
+	};
+	new const teamSelInteriorKeys[MAX_MAP_TEAMS][] =
+	{
+		"TEAM_ONE_SEL_INTERIOR", "TEAM_TWO_SEL_INTERIOR", "TEAM_THREE_SEL_INTERIOR",
+		"TEAM_FOUR_SEL_INTERIOR", "TEAM_FIVE_SEL_INTERIOR", "TEAM_SIX_SEL_INTERIOR"
+	};
+	new const teamColorKeys[MAX_MAP_TEAMS][] =
+	{
+		"COLOR_TEAM_ONE", "COLOR_TEAM_TWO", "COLOR_TEAM_THREE",
+		"COLOR_TEAM_FOUR", "COLOR_TEAM_FIVE", "COLOR_TEAM_SIX"
+	};
+	new const teamColorTDKeys[MAX_MAP_TEAMS][] =
+	{
+		"COLOR_TEAM_ONE_TD", "COLOR_TEAM_TWO_TD", "COLOR_TEAM_THREE_TD",
+		"COLOR_TEAM_FOUR_TD", "COLOR_TEAM_FIVE_TD", "COLOR_TEAM_SIX_TD"
+	};
+	new loadedTeamRows = 0;
+
+	gCurrentMapId = mapid;
+	if(!LBS_MapGetKey(mapid, gCurrentMapKey, sizeof(gCurrentMapKey)))
+	{
+		format(gCurrentMapKey, sizeof(gCurrentMapKey), "map_%d", mapid);
+	}
+
+	gMapTeamSize = LBS_MapGetDefineInt(mapid, "TEAMSIZE", 2);
+	if(gMapTeamSize < 2) gMapTeamSize = 2;
+	if(gMapTeamSize > MAX_MAP_TEAMS) gMapTeamSize = MAX_MAP_TEAMS;
+
+	for(new t = 0; t < MAX_MAP_TEAMS; t++)
+	{
+		format(gTeamColorTags[t], sizeof(gTeamColorTags[]), "{FFFFFF}TEAM%d", t + 1);
+		LBS_MapGetDefineString(mapid, teamColorTagKeys[t], gTeamColorTags[t], sizeof(gTeamColorTags[]));
+
+		format(gTeamNameTags[t], sizeof(gTeamNameTags[]), "TEAM%d", t + 1);
+		LBS_MapGetDefineString(mapid, teamNameTagKeys[t], gTeamNameTags[t], sizeof(gTeamNameTags[]));
+
+		format(gTeamLocations[t], sizeof(gTeamLocations[]), "Unknown");
+		LBS_MapGetDefineString(mapid, teamLocationKeys[t], gTeamLocations[t], sizeof(gTeamLocations[]));
+
+		gTeamInteriors[t] = LBS_MapGetDefineInt(mapid, teamInteriorKeys[t], 0);
+		gTeamSelInteriors[t] = LBS_MapGetDefineInt(mapid, teamSelInteriorKeys[t], 0);
+		gTeamColors[t] = LBS_MapGetDefineInt(mapid, teamColorKeys[t], COLOR_WHITE);
+		gTeamColorsTD[t] = LBS_MapGetDefineInt(mapid, teamColorTDKeys[t], COLOR_WHITE);
+	}
+
+	LoadFloatArray3(mapid, "Center", Center, sizeof(Center), gCenterCount);
+	LoadFloatArray4(mapid, "GlobalActors", GlobalActors, sizeof(GlobalActors), gGlobalActorsCount);
+	LoadFloatArray4(mapid, "GlobalZones", GlobalZones, sizeof(GlobalZones), gGlobalZonesCount);
+	LoadFloatArray3(mapid, "PlayerInfoPickups", PlayerInfoPickups, sizeof(PlayerInfoPickups), gPlayerInfoPickupsCount);
+	LoadFloatArray6(mapid, "MoneySpawns", MoneySpawns, sizeof(MoneySpawns), gMoneySpawnsCount);
+	LoadFloatArray4(mapid, "MAP_WORLDBOUNDS", MAP_WORLDBOUNDS, sizeof(MAP_WORLDBOUNDS), gMapWorldBoundsCount);
+	if(gGlobalZonesCount > 1 && gGlobalZonesCount < gMapTeamSize) gMapTeamSize = gGlobalZonesCount;
+	LoadFloatArray3(mapid, "ClassSel_SetupTeamTEAM_POS", ClassSel_SetupTeamTEAM_POS, sizeof(ClassSel_SetupTeamTEAM_POS), loadedTeamRows);
+	if(loadedTeamRows > 1 && loadedTeamRows < gMapTeamSize) gMapTeamSize = loadedTeamRows;
+	LoadFloatArray3(mapid, "ClassSel_SetupTeamTEAM_LOOK_AT", ClassSel_SetupTeamTEAM_LOOK_AT, sizeof(ClassSel_SetupTeamTEAM_LOOK_AT), loadedTeamRows);
+	if(loadedTeamRows > 1 && loadedTeamRows < gMapTeamSize) gMapTeamSize = loadedTeamRows;
+	LoadFloatArray3(mapid, "beds", beds, sizeof(beds), loadedTeamRows);
+	if(loadedTeamRows > 1 && loadedTeamRows < gMapTeamSize) gMapTeamSize = loadedTeamRows;
+
+	LoadFloatArray4(mapid, "gSpawnsTeam_TEAM_ONE", gSpawnsTeam_TEAM_ONE, sizeof(gSpawnsTeam_TEAM_ONE), gSpawnsTeam_TEAM_ONE_Count);
+	LoadFloatArray4(mapid, "gSpawnsTeam_TEAM_TWO", gSpawnsTeam_TEAM_TWO, sizeof(gSpawnsTeam_TEAM_TWO), gSpawnsTeam_TEAM_TWO_Count);
+	LoadFloatArray4(mapid, "gSpawnsTeam_TEAM_THREE", gSpawnsTeam_TEAM_THREE, sizeof(gSpawnsTeam_TEAM_THREE), gSpawnsTeam_TEAM_THREE_Count);
+	LoadFloatArray4(mapid, "gSpawnsTeam_TEAM_FOUR", gSpawnsTeam_TEAM_FOUR, sizeof(gSpawnsTeam_TEAM_FOUR), gSpawnsTeam_TEAM_FOUR_Count);
+	LoadFloatArray4(mapid, "gSpawnsTeam_TEAM_FIVE", gSpawnsTeam_TEAM_FIVE, sizeof(gSpawnsTeam_TEAM_FIVE), gSpawnsTeam_TEAM_FIVE_Count);
+	LoadFloatArray4(mapid, "gSpawnsTeam_TEAM_SIX", gSpawnsTeam_TEAM_SIX, sizeof(gSpawnsTeam_TEAM_SIX), gSpawnsTeam_TEAM_SIX_Count);
+
+	LoadFloatArray7(mapid, "MapVehicles", MapVehicles, sizeof(MapVehicles), gMapVehiclesCount);
+	LoadFloatArray8(mapid, "MapObjects", MapObjects, sizeof(MapObjects), gMapObjectsCount);
+
+	printf("Loaded runtime map '%s' (id=%d, teams=%d, vehicles=%d, objects=%d)",
+		gCurrentMapKey, mapid, gMapTeamSize, gMapVehiclesCount, gMapObjectsCount);
+	return true;
+}
+
+stock LoadRuntimeMapAssets()
+{
+	for(new i = 0; i < gMapVehiclesCount; i++)
+	{
+		AddStaticVehicle(
+			floatround(MapVehicles[i][0]),
+			MapVehicles[i][1], MapVehicles[i][2], MapVehicles[i][3], MapVehicles[i][4],
+			floatround(MapVehicles[i][5]), floatround(MapVehicles[i][6])
+		);
+	}
+	for(new o = 0; o < gMapObjectsCount; o++)
+	{
+		CreateObject(
+			floatround(MapObjects[o][0]),
+			MapObjects[o][1], MapObjects[o][2], MapObjects[o][3],
+			MapObjects[o][4], MapObjects[o][5], MapObjects[o][6],
+			MapObjects[o][7]
+		);
+	}
+}
+
+stock SetMapType(mapid)
+{
+	new mapKey[MAX_MAP_STR];
+	if(!LBS_MapGetKey(mapid, mapKey, sizeof(mapKey)))
+	{
+		format(mapKey, sizeof(mapKey), "map_%d", mapid);
+	}
+	printf("Loading map %s (id=%d)", mapKey, mapid);
+}
+
+stock bool:MapCycleEnsureCurrentMode()
+{
+	new mapCount = LBS_MapsReload();
+	printf("[LBS][MapCycle] MapsReload => %d map(s)", mapCount);
+	if(mapCount <= 0)
+	{
+		printf("No maps found in scriptfiles/maps");
+		return false;
+	}
+
+	if(!LBS_MapCycleInit(mapCount))
+	{
+		return false;
+	}
+
+	new selectedMap = LBS_MapCycleGetCurrent();
+	printf("[LBS][MapCycle] Current map id from component: %d", selectedMap);
+	if(selectedMap < 0 || selectedMap >= mapCount)
+	{
+		printf("[LBS][MapCycle] Current map id invalid after init.");
+		return false;
+	}
+
+	SetMapType(selectedMap);
+	return LoadMapRuntimeData(selectedMap);
+}
+
+stock MapCycleSetNextModeAndChange()
+{
+	printf("[LBS][MapCycle] Triggering GMX (next startup picks a random map).");
+	SendRconCommand("gmx");
+	return 1;
+}
+
 stock Float:frandom(Float:max, Float:min = 0.0, dp = 4)
 {
 	new
@@ -866,8 +1098,8 @@ public TeleportPlayerToBase(playerid)
 	case FIRST_TEAM:
 		{
 			new str[80];
-			randSpawn = random(sizeof(gSpawnsTeam_TEAM_ONE));
-			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team "#FIRST_TEAM_COLOR_TAG);
+			randSpawn = (gSpawnsTeam_TEAM_ONE_Count > 0) ? random(gSpawnsTeam_TEAM_ONE_Count) : 0;
+			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team %s", FIRST_TEAM_COLOR_TAG);
 			SendClientMessage(playerid,COLOR_WHITE,str);
 			SetPlayerPos(playerid,
 			gSpawnsTeam_TEAM_ONE[randSpawn][0],
@@ -878,8 +1110,8 @@ public TeleportPlayerToBase(playerid)
 	case SECOND_TEAM:
 		{
 			new str[80];
-			randSpawn = random(sizeof(gSpawnsTeam_TEAM_TWO));
-			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team "#SECOND_TEAM_COLOR_TAG);
+			randSpawn = (gSpawnsTeam_TEAM_TWO_Count > 0) ? random(gSpawnsTeam_TEAM_TWO_Count) : 0;
+			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team %s", SECOND_TEAM_COLOR_TAG);
 			SendClientMessage(playerid,COLOR_WHITE,str);
 			SetPlayerPos(playerid,
 			gSpawnsTeam_TEAM_TWO[randSpawn][0],
@@ -898,8 +1130,8 @@ public TeleportPlayerToBase(playerid)
 	case THIRD_TEAM:
 		{
 			new str[80];
-			randSpawn = random(sizeof(gSpawnsTeam_TEAM_THREE));
-			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team "#THIRD_TEAM_COLOR_TAG);
+			randSpawn = (gSpawnsTeam_TEAM_THREE_Count > 0) ? random(gSpawnsTeam_TEAM_THREE_Count) : 0;
+			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team %s", THIRD_TEAM_COLOR_TAG);
 			SendClientMessage(playerid,COLOR_WHITE,str);
 			SetPlayerPos(playerid,
 			gSpawnsTeam_TEAM_THREE[randSpawn][0],
@@ -918,8 +1150,8 @@ public TeleportPlayerToBase(playerid)
 	case FOURTH_TEAM:
 		{
 			new str[80];
-			randSpawn = random(sizeof(gSpawnsTeam_TEAM_FOUR));
-			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team "#FOURTH_TEAM_COLOR_TAG);
+			randSpawn = (gSpawnsTeam_TEAM_FOUR_Count > 0) ? random(gSpawnsTeam_TEAM_FOUR_Count) : 0;
+			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team %s", FOURTH_TEAM_COLOR_TAG);
 			SendClientMessage(playerid,COLOR_WHITE,str);
 			SetPlayerPos(playerid,
 			gSpawnsTeam_TEAM_FOUR[randSpawn][0],
@@ -937,8 +1169,8 @@ public TeleportPlayerToBase(playerid)
 	case FIFTH_TEAM:
 		{
 			new str[80];
-			randSpawn = random(sizeof(gSpawnsTeam_TEAM_FIVE));
-			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team "#FIFTH_TEAM_COLOR_TAG);
+			randSpawn = (gSpawnsTeam_TEAM_FIVE_Count > 0) ? random(gSpawnsTeam_TEAM_FIVE_Count) : 0;
+			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team %s", FIFTH_TEAM_COLOR_TAG);
 			SendClientMessage(playerid,COLOR_WHITE,str);
 			SetPlayerPos(playerid,
 			gSpawnsTeam_TEAM_FIVE[randSpawn][0],
@@ -956,8 +1188,8 @@ public TeleportPlayerToBase(playerid)
 	case SIXTH_TEAM:
 		{
 			new str[80];
-			randSpawn = random(sizeof(gSpawnsTeam_TEAM_SIX));
-			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team "#SIXTH_TEAM_COLOR_TAG);
+			randSpawn = (gSpawnsTeam_TEAM_SIX_Count > 0) ? random(gSpawnsTeam_TEAM_SIX_Count) : 0;
+			format(str,sizeof(str),"SERVER: You have been teleported to the base of your team %s", SIXTH_TEAM_COLOR_TAG);
 			SendClientMessage(playerid,COLOR_WHITE,str);
 			SetPlayerPos(playerid,
 			gSpawnsTeam_TEAM_SIX[randSpawn][0],
@@ -1013,6 +1245,7 @@ stock SpecPlayer(playerid,targetplayer)
 	IsSpecing[playerid] = 1;
 	IsBeingSpeced[targetplayer] = 1;
 	spectatorid[playerid] = targetplayer;
+	LBS_PlayerSetSpectating(playerid, true);
 }
 
 stock SpecRandomPlayer(playerid)
@@ -1176,7 +1409,7 @@ FinishedGame()
 	if(GetActiveTeamCount() < 2)
 	{
 		
-		for(new i;i<TEAMSIZE;i++)
+		for(new i; i < gMapTeamSize; i++)
 		{
 			if(GetTeamPlayerCount(i) > 0)
 			{
@@ -1246,7 +1479,7 @@ public TeamRemaining()
 			FinishedGame();
 			return 1;
 		}
-		for(new i;i<TEAMSIZE;i++)
+		for(new i; i < gMapTeamSize; i++)
 		{
 			if(GetTeamPlayerCount(i) > 0)
 			{
@@ -1284,7 +1517,7 @@ stock bool:IsTeamEliminated(teamid)
 stock GetSurvivingTeamCount()
 {
 	new c = 0;
-	for(new i;i<TEAMSIZE;i++)
+	for(new i; i < gMapTeamSize; i++)
 	{
 		if(GetTeamPlayerCount(i) > 0) c++;
 	}
@@ -1331,7 +1564,7 @@ public StartGame()
 			format(str, sizeof(str), "~g~ %d", CountDownVar);
 			GameTextForAll(str, 1000, 6);
 			new currentplayers;
-			for(new k = 0; k < TEAMSIZE; k++)
+			for(new k = 0; k < gMapTeamSize; k++)
 			{
 				currentplayers = currentplayers + GetTeamPlayerCount(k);
 			}
@@ -1351,7 +1584,7 @@ public StartGame()
 			format(str, sizeof(str), "~g~ %d", CountDownVar);
 			GameTextForAll(str, 1000, 6);
 			new currentplayers;
-			for(new k = 0; k < TEAMSIZE; k++)
+			for(new k = 0; k < gMapTeamSize; k++)
 			{
 				currentplayers = currentplayers + GetTeamPlayerCount(k);
 			}
@@ -1371,7 +1604,7 @@ public StartGame()
 			format(str, sizeof(str), "~g~ %d", CountDownVar);
 			GameTextForAll(str, 1000, 6);
 			new currentplayers;
-			for(new k = 0; k < TEAMSIZE; k++)
+			for(new k = 0; k < gMapTeamSize; k++)
 			{
 				currentplayers = currentplayers + GetTeamPlayerCount(k);
 			}
@@ -1430,74 +1663,34 @@ public CountDown()
 
 public warpcount(playerid)
 {
-	WarpVar[playerid]--;
 	new Float:x,Float:y,Float:z;
 	GetPlayerPos(playerid,x,y,z);
-	
-	if(WarpVar[playerid] == 0)
+
+	new warp_res = LBS_PlayerWarpTick(playerid, x, y, z);
+	if(warp_res == -2)
 	{
-		if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
-		{
-			KillTimer(WarpTimer);
-			WarpVar[playerid] = 4;
-			Warppowder[playerid]=1;
-			if(IsValidObject(Beam[playerid]))
-			DestroyObject(Beam[playerid]);	
-			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
-		}
-		if(IsValidObject(Beam[playerid]))
-		DestroyObject(Beam[playerid]);	
+		KillTimer(WarpTimer);
+		WarpVar[playerid] = 4;
+		Warppowder[playerid]=1;
+		LBS_PlayerSetWarpPowder(playerid, true);
+		if(IsValidObject(Beam[playerid])) DestroyObject(Beam[playerid]);
+		return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
+	}
+	if(warp_res == 0)
+	{
+		if(IsValidObject(Beam[playerid])) DestroyObject(Beam[playerid]);
 		TeleportPlayerToBase(playerid);
-		
-		WarpVar[playerid] = 4;	
+		WarpVar[playerid] = 4;
 		KillTimer(WarpTimer);
 		PlayerPlaySound(playerid,1137,x,y,z);
+		return 1;
 	}
-	if(WarpVar[playerid] == 1)
+	if(warp_res > 0)
 	{
-		if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
-		{
-			KillTimer(WarpTimer);
-			WarpVar[playerid] = 4;
-			Warppowder[playerid]=1;
-			if(IsValidObject(Beam[playerid]))
-			DestroyObject(Beam[playerid]);	
-			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
-			
-		}
+		WarpVar[playerid] = warp_res;
 		PlayerPlaySound(playerid,1137,x,y,z);
-		
 	}
-	if(WarpVar[playerid] == 2)
-	{
-		if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
-		{
-			KillTimer(WarpTimer);
-			WarpVar[playerid] = 4;
-			Warppowder[playerid]=1;
-			if(IsValidObject(Beam[playerid]))
-			DestroyObject(Beam[playerid]);	
-			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
-		}
-		PlayerPlaySound(playerid,1137,x,y,z);
-		
-	}
-	if(WarpVar[playerid] == 3)
-	{
-		if(!IsPlayerInRangeOfPoint(playerid,2.0,wX[playerid],wY[playerid],wZ[playerid]))
-		{
-			KillTimer(WarpTimer);
-			WarpVar[playerid] = 4;
-			Warppowder[playerid]=1;
-			if(IsValidObject(Beam[playerid]))
-			DestroyObject(Beam[playerid]);	
-			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You moved right away! Teleport aborted.");
-		}
-		PlayerPlaySound(playerid,1137,x,y,z);
-		
-	}
-	
-	
+
 	return 1;
 }
 
@@ -1606,7 +1799,9 @@ public UpdateTimeAndWeather()
 	//Check if all players have left the game because no one can join.
 	if(GetPlayerCount() == 0 && GameHasStarted)
 	{
-		SendRconCommand("gmx");
+		printf("[LBS][MapCycle] No players online while game running -> rotating map via GMX.");
+		MapCycleSetNextModeAndChange();
+		return 1;
 	}
 
 	gettime(hour, minute);
@@ -1970,6 +2165,9 @@ public OnPlayerConnect(playerid)
 	gPlayerHasTeamSelected[playerid] = 0;
 	gPlayerLastTeamSelectionTick[playerid] = GetTickCount();
 	LBS_PlayerConnect(playerid);
+	LBS_PlayerSetTeam(playerid, -1, false);
+	LBS_PlayerSetSpectating(playerid, false);
+	LBS_PlayerSetWarpPowder(playerid, false);
 	return 1;
 }
 stock ClassSel_SetupCharSelection(playerid)
@@ -2073,7 +2271,7 @@ stock ClassSel_SwitchToNextTeam(playerid)
 	gPlayerTeamSelection[playerid]++;
 
 	
-	switch(TEAMSIZE)
+	switch(gMapTeamSize)
 	{
 	case 2:
 		{
@@ -2121,7 +2319,7 @@ stock ClassSel_SwitchToPreviousTeam(playerid)
 {
 	gPlayerTeamSelection[playerid]--;
 
-	switch(TEAMSIZE)
+	switch(gMapTeamSize)
 	{
 	case 2:
 		{
@@ -2231,6 +2429,7 @@ stock ClassSel_HandleTeamSelection(playerid)
 		PlayerTextDrawHide(playerid,TeamCover[playerid]);
 		TextDrawHideForPlayer(playerid,txtClassSelHelper);//Observer textdraw
 		TogglePlayerSpectating(playerid, false);
+		LBS_PlayerSetSpectating(playerid, false);
 		return;
 	}
 	if(lr > 0) {
@@ -2256,6 +2455,7 @@ public OnPlayerRequestClass(playerid, classid)
 			TogglePlayerSpectating(playerid,true);
 			TextDrawShowForPlayer(playerid, txtClassSelHelper);
 			gPlayerTeamSelection[playerid] = -1;
+			LBS_PlayerSetTeam(playerid, -1, false);
 		}
 	}
 
@@ -2778,6 +2978,7 @@ public OnPlayerSelectedMenuRow(playerid, row)
 			if(GetPlayerMoney(playerid) >= 50000 && Warppowder[playerid] == 0)
 			{
 				Warppowder[playerid]=1;
+				LBS_PlayerSetWarpPowder(playerid, true);
 				SendClientMessage(playerid, 0xFFFFFFFF, "SERVER: You have bought a Warpkit! You can teleport yourself back to your base by using /warp");
 				ShowMenuForPlayer(shopmenu,playerid);
 				TogglePlayerControllable(playerid,false);
@@ -2844,18 +3045,20 @@ public OnPlayerTakeDamage(playerid, issuerid, Float: amount, weaponid, bodypart)
 	return 1;
 }
 
+/// Restarts mode via RCON. Ref: https://open.mp/docs/scripting/functions/SendRconCommand
 public GMX()
 {
-	printf("Total game time: %d",totaltime);
-	SendRconCommand("gmx"); 
+	printf("[LBS][MapCycle] GMX called. Total game time: %d",totaltime);
+	MapCycleSetNextModeAndChange();
 }
 
 public GMXFallback()
 {
-	// If GMX was issued but the mode did not restart, enforce it again once.
+	// If mode change was issued but did not restart, enforce it again once.
 	if(GMXRetryPending) return 1;
 	GMXRetryPending = 1;
-	SendRconCommand("gmx");
+	printf("[LBS][MapCycle] GMXFallback called, retrying map rotation.");
+	MapCycleSetNextModeAndChange();
 	return 1;
 }
 
@@ -3009,7 +3212,7 @@ public OnPlayerUpdate(playerid)
 }
 IsPlayerInRangeOfBed(playerid,Float:range)
 {
-	for(new i;i<TEAMSIZE;i++)
+	for(new i; i < gMapTeamSize; i++)
 	{
 		new Float:px, Float:py, Float:pz, Float:ox, Float:oy, Float:oz;
 		GetObjectPos(BedArray[i],ox,oy,oz);
@@ -3051,7 +3254,9 @@ public OnPlayerClickPlayer(playerid, clickedplayerid, source)
 	SendClientMessage(playerid, COLOR_WHITE, "SERVER: Player Stats of %s(%d) Team: %s ", name, clickedplayerid, GetPlayerTeamColorTag(clickedplayerid));
 	SendClientMessage(playerid, COLOR_WHITE, "Kills:%d Deaths:%d Ratio:%0.2f Blown beds:%d Bombs detonated:%d", kills, deaths, kd, PlayerInfo[clickedplayerid][pBeds], PlayerInfo[clickedplayerid][pBombs]);
 	return 1;
-}															 
+}
+
+															 
 public OnPlayerCommandText(playerid, cmdtext[])
 {
 	new cmd[32], idx;
@@ -3097,6 +3302,27 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		if(!IsPlayerAdmin(playerid)) return 0;
 		DebugMode = !DebugMode;
 		SendClientMessage(playerid, COLOR_WHITE, DebugMode ? "SERVER: Debug mode enabled." : "SERVER: Debug mode disabled.");
+		return 1;
+	}
+	if(strcmp(cmd, "/mapdebug", true) == 0)
+	{
+		if(!IsPlayerAdmin(playerid)) return 0;
+		new msg[196];
+		new mapCount = LBS_MapsCount();
+		new selectedMap = LBS_MapCycleGetCurrent();
+		new selectedKey[MAX_MAP_STR];
+		if(!LBS_MapGetKey(selectedMap, selectedKey, sizeof(selectedKey))) format(selectedKey, sizeof(selectedKey), "map_%d", selectedMap);
+		format(msg, sizeof(msg), "[LBS][MapCycle] loaded=%d selectedThisStartup=%d(%s) loadedInGM=%d(%s) teams=%d",
+			mapCount, selectedMap, selectedKey, gCurrentMapId, gCurrentMapKey, gMapTeamSize);
+		SendClientMessage(playerid, COLOR_YELLOW, msg);
+		printf("%s", msg);
+		return 1;
+	}
+	if(strcmp(cmd, "/mapnext", true) == 0)
+	{
+		if(!IsPlayerAdmin(playerid)) return 0;
+		SendClientMessage(playerid, COLOR_YELLOW, "SERVER: Triggering GMX, next startup picks a random map.");
+		MapCycleSetNextModeAndChange();
 		return 1;
 	}
 	if(strcmp(cmd, "/dbg_skipcd", true) == 0)
@@ -3226,19 +3452,21 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	}
 	if(strcmp(cmd, "/warp", true) == 0) //Warppowder
 	{
-		if(Warppowder[playerid] == 1 && !IsPlayerInAnyVehicle(playerid))
+		if(LBS_PlayerHasWarpPowder(playerid) && !IsPlayerInAnyVehicle(playerid))
 		{
-			Warppowder[playerid]=0;
-			SendClientMessage(playerid,COLOR_WHITE,"SERVER: Warning! Don't move until teleport!");
-			WarpTimer = SetTimerEx("warpcount", 1000, true,"i",playerid);
 			new Float:x,Float:y,Float:z;
 			GetPlayerPos(playerid,x,y,z);
-			wX[playerid]=x;
-			wY[playerid]=y;
-			wZ[playerid]=z;
+			if(!LBS_PlayerWarpStart(playerid, x, y, z, 4))
+			{
+				return SendClientMessage(playerid,COLOR_WHITE,"SERVER: Warp is already running.");
+			}
+			Warppowder[playerid]=0;
+			LBS_PlayerSetWarpPowder(playerid, false);
+			SendClientMessage(playerid,COLOR_WHITE,"SERVER: Warning! Don't move until teleport!");
+			WarpTimer = SetTimerEx("warpcount", 1000, true,"i",playerid);
 			Beam[playerid] = CreateObject(18671,x,y,z-1,0,0,0,300.0);
 		}
-		else if(Warppowder[playerid] != 1)
+		else if(!LBS_PlayerHasWarpPowder(playerid))
 		{
 			return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You do not have Warppowder!");
 		}
@@ -3301,6 +3529,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		if(!IsPlayerAdmin(playerid)) return 0;
 		if(IsSpecing[playerid] == 0)return SendClientMessage(playerid,COLOR_WHITE,"SERVER: You are not spectating");
 		TogglePlayerSpectating(playerid, false);
+		LBS_PlayerSetSpectating(playerid, false);
 		return 1;
 	}
 	// Prototyp
@@ -3908,6 +4137,8 @@ public OnPlayerDeath(playerid, killerid, reason)
 		SetPlayerCameraPos(playerid,243.2876,1802.5547,7.4141);
 		SetPlayerCameraLookAt(playerid,243.1261,1805.2798,8.3794);
 		gPlayerTeamSelection[playerid] =TEAM_SPECTATOR;
+		LBS_PlayerSetTeam(playerid, TEAM_SPECTATOR, false);
+		LBS_PlayerSetSpectating(playerid, true);
 		SetPlayerColor(playerid,COLOR_WHITE);
 		SpecRandomPlayer(playerid);
 	}
@@ -3917,7 +4148,7 @@ public OnPlayerDeath(playerid, killerid, reason)
 		/*Debug only
 		printf("Timer set");
 		printf("Active Team Count: %d",GetActiveTeamCount());
-		for(new i;i<TEAMSIZE;i++)
+		for(new i; i < gMapTeamSize; i++)
 		{
 			printf("Amount of players in Team: %d:  %d",i,GetTeamPlayerCount(i));
 		}
@@ -3956,6 +4187,8 @@ ClassSel_SetupSelectedTeam(playerid)
 	if(GameHasStarted == 1)
 	{
 		gPlayerTeamSelection[playerid] = TEAM_SPECTATOR;
+		LBS_PlayerSetTeam(playerid, TEAM_SPECTATOR, false);
+		LBS_PlayerSetSpectating(playerid, true);
 		SpecRandomPlayer(playerid);
 		new Float:time = totaltime / 60;
 		SendClientMessage(playerid, COLOR_WHITE, "SERVER: Game has started %d minute(s) ago so you are spectating now.", time);
@@ -3976,7 +4209,7 @@ ClassSel_SetupSelectedTeam(playerid)
 		PlayerTextDrawSetString(playerid, TeamText[playerid],FIRST_TEAM_TEXTDRAW_STRING);
 		PlayerTextDrawColor(playerid,TeamText[playerid],COLOR_TEAM_ONE_TD);
 		PlayerTextDrawShow(playerid,TeamText[playerid]);
-		format(astring,sizeof(astring),"Location:"#FIRST_TEAM_LOCATION);
+		format(astring,sizeof(astring),"Location: %s", FIRST_TEAM_LOCATION);
 		PlayerTextDrawSetString(playerid, LocText[playerid], astring);
 		PlayerTextDrawShow(playerid,LocText[playerid]);
 
@@ -3999,7 +4232,7 @@ ClassSel_SetupSelectedTeam(playerid)
 		PlayerTextDrawSetString(playerid, TeamText[playerid],SECOND_TEAM_TEXTDRAW_STRING);
 		PlayerTextDrawColor(playerid,TeamText[playerid],COLOR_TEAM_TWO_TD);
 		PlayerTextDrawShow(playerid,TeamText[playerid]);
-		format(astring,sizeof(astring),"Location:"#SECOND_TEAM_LOCATION);
+		format(astring,sizeof(astring),"Location: %s", SECOND_TEAM_LOCATION);
 		PlayerTextDrawSetString(playerid, LocText[playerid], astring);
 		PlayerTextDrawShow(playerid,LocText[playerid]);
 		PlayerPlaySound(playerid,2402,0,0,0);
@@ -4021,7 +4254,7 @@ ClassSel_SetupSelectedTeam(playerid)
 		PlayerTextDrawSetString(playerid, TeamText[playerid],THIRD_TEAM_TEXTDRAW_STRING);
 		PlayerTextDrawColor(playerid,TeamText[playerid],COLOR_TEAM_THREE_TD);
 		PlayerTextDrawShow(playerid,TeamText[playerid]);
-		format(astring,sizeof(astring),"Location:"#THIRD_TEAM_LOCATION);
+		format(astring,sizeof(astring),"Location: %s", THIRD_TEAM_LOCATION);
 		PlayerTextDrawSetString(playerid, LocText[playerid], astring);
 		PlayerTextDrawShow(playerid,LocText[playerid]);
 		PlayerPlaySound(playerid,2404,0,0,0);
@@ -4043,7 +4276,7 @@ ClassSel_SetupSelectedTeam(playerid)
 		PlayerTextDrawSetString(playerid, TeamText[playerid],FOURTH_TEAM_TEXTDRAW_STRING);
 		PlayerTextDrawColor(playerid,TeamText[playerid],COLOR_TEAM_FOUR_TD);
 		PlayerTextDrawShow(playerid,TeamText[playerid]);
-		format(astring,sizeof(astring),"Location:"#FOURTH_TEAM_LOCATION);
+		format(astring,sizeof(astring),"Location: %s", FOURTH_TEAM_LOCATION);
 		PlayerTextDrawSetString(playerid, LocText[playerid], astring);
 		PlayerTextDrawShow(playerid,LocText[playerid]);
 		SetPlayerWeather(playerid,0);
@@ -4066,7 +4299,7 @@ ClassSel_SetupSelectedTeam(playerid)
 		PlayerTextDrawSetString(playerid, TeamText[playerid],FIFTH_TEAM_TEXTDRAW_STRING);
 		PlayerTextDrawColor(playerid,TeamText[playerid],COLOR_TEAM_FIVE_TD);
 		PlayerTextDrawShow(playerid,TeamText[playerid]);
-		format(astring,sizeof(astring),"Location:"#FIFTH_TEAM_LOCATION);
+		format(astring,sizeof(astring),"Location: %s", FIFTH_TEAM_LOCATION);
 		PlayerTextDrawSetString(playerid, LocText[playerid], astring);
 		PlayerTextDrawShow(playerid,LocText[playerid]);
 
@@ -4090,7 +4323,7 @@ ClassSel_SetupSelectedTeam(playerid)
 		PlayerTextDrawSetString(playerid, TeamText[playerid],SIXTH_TEAM_TEXTDRAW_STRING);
 		PlayerTextDrawColor(playerid,TeamText[playerid],COLOR_TEAM_SIX_TD);
 		PlayerTextDrawShow(playerid,TeamText[playerid]);
-		format(astring,sizeof(astring),"Location:"#SIXTH_TEAM_LOCATION);
+		format(astring,sizeof(astring),"Location: %s", SIXTH_TEAM_LOCATION);
 		PlayerTextDrawSetString(playerid, LocText[playerid], astring);
 		PlayerTextDrawShow(playerid,LocText[playerid]);
 		PlayerPlaySound(playerid,2404,0,0,0);
@@ -4124,13 +4357,15 @@ public BlowUpThisBed(teamid)
 
 	}
 }
-stock RespawnAllVehicles()
+/// Timer callback for vehicle respawn. Ref: https://open.mp/docs/scripting/functions/SetTimer
+public RespawnAllVehicles()
 {
 	for(new i = GetVehiclePoolSize(); i > 0; i--)
 	{
 		if(GetVehicleDriver(i) != INVALID_PLAYER_ID) continue;
 		SetVehicleToRespawn(i);
 	}
+	return 1;
 }
 stock GetPlayerCount()
 {
@@ -4201,6 +4436,7 @@ public OnPlayerSpawn(playerid)
 		SetPlayerVirtualWorld(playerid,vWorld[playerid]);
 		IsSpecing[playerid] = 0;
 		IsBeingSpeced[spectatorid[playerid]] = 0;
+		LBS_PlayerSetSpectating(playerid, false);
 	}
 	if(IsPlayerNPC(playerid)) return 1;
 	if(IsSpecing[playerid] == 1) return 1;
@@ -4223,7 +4459,7 @@ public OnPlayerSpawn(playerid)
 	{
 	case FIRST_TEAM: 
 		{
-			randSpawn = random(sizeof(gSpawnsTeam_TEAM_ONE));
+			randSpawn = (gSpawnsTeam_TEAM_ONE_Count > 0) ? random(gSpawnsTeam_TEAM_ONE_Count) : 0;
 			SetPlayerPos(playerid,gSpawnsTeam_TEAM_ONE[randSpawn][0],gSpawnsTeam_TEAM_ONE[randSpawn][1],gSpawnsTeam_TEAM_ONE[randSpawn][2]);
 			SetPlayerFacingAngle(playerid,gSpawnsTeam_TEAM_ONE[randSpawn][3]);
 		}
@@ -4231,7 +4467,7 @@ public OnPlayerSpawn(playerid)
 		#if TEAMSIZE >= 2
 	case SECOND_TEAM:
 		{
-			randSpawn = random(sizeof(gSpawnsTeam_TEAM_TWO));
+			randSpawn = (gSpawnsTeam_TEAM_TWO_Count > 0) ? random(gSpawnsTeam_TEAM_TWO_Count) : 0;
 			SetPlayerPos(playerid,
 			gSpawnsTeam_TEAM_TWO[randSpawn][0],
 			gSpawnsTeam_TEAM_TWO[randSpawn][1],
@@ -4244,7 +4480,7 @@ public OnPlayerSpawn(playerid)
 		#if TEAMSIZE >= 3
 	case THIRD_TEAM:
 		{
-			randSpawn = random(sizeof(gSpawnsTeam_TEAM_THREE));
+			randSpawn = (gSpawnsTeam_TEAM_THREE_Count > 0) ? random(gSpawnsTeam_TEAM_THREE_Count) : 0;
 			SetPlayerPos(playerid,
 			gSpawnsTeam_TEAM_THREE[randSpawn][0],
 			gSpawnsTeam_TEAM_THREE[randSpawn][1],
@@ -4257,7 +4493,7 @@ public OnPlayerSpawn(playerid)
 		#if TEAMSIZE >= 4
 	case FOURTH_TEAM:
 		{
-			randSpawn = random(sizeof(gSpawnsTeam_TEAM_FOUR));
+			randSpawn = (gSpawnsTeam_TEAM_FOUR_Count > 0) ? random(gSpawnsTeam_TEAM_FOUR_Count) : 0;
 			SetPlayerPos(playerid,
 			gSpawnsTeam_TEAM_FOUR[randSpawn][0],
 			gSpawnsTeam_TEAM_FOUR[randSpawn][1],
@@ -4270,7 +4506,7 @@ public OnPlayerSpawn(playerid)
 		#if TEAMSIZE >= 5
 	case FIFTH_TEAM:
 		{
-			randSpawn = random(sizeof(gSpawnsTeam_TEAM_FIVE));
+			randSpawn = (gSpawnsTeam_TEAM_FIVE_Count > 0) ? random(gSpawnsTeam_TEAM_FIVE_Count) : 0;
 			SetPlayerPos(playerid,
 			gSpawnsTeam_TEAM_FIVE[randSpawn][0],
 			gSpawnsTeam_TEAM_FIVE[randSpawn][1],
@@ -4283,7 +4519,7 @@ public OnPlayerSpawn(playerid)
 		#if TEAMSIZE == 6
 	case SIXTH_TEAM:
 		{
-			randSpawn = random(sizeof(gSpawnsTeam_TEAM_SIX));
+			randSpawn = (gSpawnsTeam_TEAM_SIX_Count > 0) ? random(gSpawnsTeam_TEAM_SIX_Count) : 0;
 			SetPlayerPos(playerid,
 			gSpawnsTeam_TEAM_SIX[randSpawn][0],
 			gSpawnsTeam_TEAM_SIX[randSpawn][1],
@@ -4389,7 +4625,7 @@ public OnPlayerSpawn(playerid)
 
 public TEAM_MONEY()//MONEY FOR EACH TEAM
 {
-	for (new m=0;m<sizeof(MoneySpawns)-1;m++)
+	for (new m = 0; m < gMoneySpawnsCount - 1; m++)
 	{
 		GenerateRandomPickup(1212,19,MoneySpawns[m][0],MoneySpawns[m][1],MoneySpawns[m][2],MoneySpawns[m][3],MoneySpawns[m][4],MoneySpawns[m][5],0);
 	}
@@ -4402,7 +4638,11 @@ public TEAM_MONEY()//MONEY FOR EACH TEAM
 public MONEY_MAIN()//MAIN
 {
 	
-	GenerateRandomPickup(1212,19,MoneySpawns[sizeof(MoneySpawns)-1][0],MoneySpawns[sizeof(MoneySpawns)-1][1],MoneySpawns[sizeof(MoneySpawns)-1][2],MoneySpawns[sizeof(MoneySpawns)-1][3],MoneySpawns[sizeof(MoneySpawns)-1][4],MoneySpawns[sizeof(MoneySpawns)-1][5],0);
+	if(gMoneySpawnsCount > 0)
+	{
+		new mainSpawn = gMoneySpawnsCount - 1;
+		GenerateRandomPickup(1212,19,MoneySpawns[mainSpawn][0],MoneySpawns[mainSpawn][1],MoneySpawns[mainSpawn][2],MoneySpawns[mainSpawn][3],MoneySpawns[mainSpawn][4],MoneySpawns[mainSpawn][5],0);
+	}
 }	
 
 
@@ -4410,8 +4650,10 @@ stock ResetPlayerData(playerid)
 {
 	IsSpecing[playerid]=0;
 	IsBeingSpeced[playerid]=0;
+	LBS_PlayerSetSpectating(playerid, false);
 	PStealth[playerid]=0;
 	Warppowder[playerid]=0;
+	LBS_PlayerSetWarpPowder(playerid, false);
 	Helmet[playerid]=0;
 	PBombID[playerid]=0;
 	PBomb[playerid]=0;

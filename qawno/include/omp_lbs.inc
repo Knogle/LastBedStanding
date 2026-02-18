@@ -19,6 +19,23 @@ native bool:LBS_AddMoneySpawn(Float:xMax, Float:xMin, Float:yMax, Float:yMin, Fl
 native bool:LBS_Update(deltaMs);
 native bool:LBS_ResetMatch();
 
+// Runtime map metadata/data loading (JSON exported into scriptfiles/maps).
+// Call from OnGameModeInit. Ref: https://open.mp/docs/scripting/callbacks/OnGameModeInit
+native LBS_MapsReload();
+native LBS_MapsCount();
+native bool:LBS_MapGetKey(mapid, mapKey[], len = 64);
+native bool:LBS_MapGetCurrentKey(mapKey[], len = 64);
+native LBS_MapGetDefineInt(mapid, const key[], defaultValue = 0);
+native bool:LBS_MapGetDefineString(mapid, const key[], value[], len = 64);
+native LBS_MapGetArrayRows(mapid, const arrayName[]);
+native LBS_MapGetArrayCols(mapid, const arrayName[], row);
+native LBS_MapGetArrayValue(mapid, const arrayName[], row, col); // Float bits (use Float: cast in Pawn)
+
+// Map selection (random map per startup/init)
+native bool:LBS_MapCycleInit(mapCount);
+native LBS_MapCycleGetCurrent();
+native LBS_MapCycleAdvance();
+
 // State machine
 native LBS_GetPhase();
 native bool:LBS_RequestCountdown(seconds);
@@ -29,6 +46,11 @@ native bool:LBS_PlayerDisconnect(playerid);
 native bool:LBS_PlayerSetTeam(playerid, teamid, bool:chosen);
 native bool:LBS_PlayerSpawned(playerid);
 native bool:LBS_PlayerDied(playerid);
+native bool:LBS_PlayerSetSpectating(playerid, bool:spectating);
+native bool:LBS_PlayerSetWarpPowder(playerid, bool:hasWarpPowder);
+native bool:LBS_PlayerHasWarpPowder(playerid);
+native bool:LBS_PlayerWarpStart(playerid, Float:x, Float:y, Float:z, ticks = 4);
+native LBS_PlayerWarpTick(playerid, Float:x, Float:y, Float:z); // -2 moved abort, -1 inactive, 0 done, >0 remaining
 
 // Pickups
 native LBS_HandlePickup(playerid, pickupid); // returns money amount or 0
